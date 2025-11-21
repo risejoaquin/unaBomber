@@ -1,21 +1,27 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>unaBomber - Protocolo de Descenso</title>
-    <link rel="stylesheet" href="css/style.css">
+    <meta charset="utf-8">
+    <title>UNABOMBER</title>
+    <style>
+        body {
+            margin: 0;
+        }
 
-    <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+        #game-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #1a1a1a;
+        }
+    </style>
 </head>
 
 <body>
-
     <div id="game-container"></div>
-
-    <script type="module" src="src/main.js"></script>
-
+    <script type="module" src="./src/main.js"></script>
 </body>
 
 </html>

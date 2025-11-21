@@ -1,7 +1,9 @@
-import { Seal } from '../objects/Seal.js';
-import { Enemy } from '../objects/Enemy.js';
+import Phaser from 'phaser';
+import Seal from '../objects/Seal.js';
+import Enemy from '../objects/Enemy.js';
+import Explosion from '../objects/Explosion.js'; // Importante importar esto
 
-export class GameScene extends Phaser.Scene {
+export default class GameScene extends Phaser.Scene {
     constructor() {
         super('GameScene');
     }
@@ -9,158 +11,133 @@ export class GameScene extends Phaser.Scene {
     create() {
         // --- 1. MAPA ---
         const map = this.make.tilemap({ key: 'map_level1' });
-        const tileset = map.addTilesetImage('dungeon_tiles', 'tileset_img');
-        this.wallsLayer = map.createLayer('ground', tileset, 0, 0);
-        this.wallsLayer.setScale(3);
-        this.wallsLayer.setCollision([1, 2]);
 
-        // --- 2. GRUPOS ---
+        // Asegúrate de que este nombre coincida con el que pusiste en Tiled al incrustar
+        // (y que la ruta en BootScene sea correcta)
+        const tileset = map.addTilesetImage('0x72_DungeonTilesetII_v1.7', 'tileset_img');
+
+        // --- CREAR CAPAS VISUALES (Usando tus nuevos nombres) ---
+        // El orden importa: de atrás hacia adelante.
+
+        // 1. Suelo (Fondo, sin colisión)
+        this.groundLayer = map.createLayer('ground', tileset, 0, 0);
+        this.groundLayer.setScale(3);
+
+        // 2. Muros Límite (Colisión)
+        this.wallsLayer = map.createLayer('walls', tileset, 0, 0);
+        this.wallsLayer.setScale(3);
+        // Activar colisión para todos los tiles que tienen la propiedad 'collides: true'
+        this.wallsLayer.setCollisionByProperty({ collides: true });
+
+        // 3. Objetos Fijos Interiores (Colisión) - Estatuas, barriles no rompibles, etc.
+        this.staticObjectsLayer = map.createLayer('static_objects', tileset, 0, 0);
+        this.staticObjectsLayer.setScale(3);
+        // Activar colisión si el tile tiene 'collides: true'
+        this.staticObjectsLayer.setCollisionByProperty({ collides: true });
+
+        // 4. Objetos Destructibles "kitkat" (Colisión, por ahora)
+        // Puedes añadir cajas u otros elementos rompibles aquí en Tiled
+        this.kitkatLayer = map.createLayer('kitkat', tileset, 0, 0);
+        this.kitkatLayer.setScale(3);
+        // Activar colisión si el tile tiene 'collides: true'
+        this.kitkatLayer.setCollisionByProperty({ collides: true });
+
+
+        // --- 2. GRUPOS (Para manejar múltiples objetos del mismo tipo) ---
+        // Grupo para las "focas" (sellos o kits de vida)
         this.seals = this.physics.add.group({ classType: Seal, runChildUpdate: true });
+        // Grupo para los enemigos
         this.enemies = this.physics.add.group({ classType: Enemy, runChildUpdate: true });
+        // Grupo para fuegos de explosión
+        this.explosionGroup = this.physics.add.group({ classType: Explosion, runChildUpdate: true });
+
 
         // --- 3. JUGADOR ---
-        this.player = this.physics.add.sprite(100, 100, 'hero');
-        this.player.setScale(3);
-        this.player.body.setSize(12, 14);
-        this.player.body.setOffset(2, 16);
-        this.player.setCollideWorldBounds(true);
+        const TILE_SIZE = 16; // Tamaño original de un tile
+        const SCALE_FACTOR = 3; // Factor de escala para el juego
 
-        // --- 4. LA PUERTA (CORREGIDO) ---
-        this.door = this.physics.add.sprite(0, 0, 'door');
-        this.door.setScale(3);
-        this.door.setVisible(false);
-        this.door.setActive(false);
+        // Posición inicial tentativa del jugador (ajústala según tu mapa)
+        // Por ejemplo, en la esquina superior izquierda
+        this.player = this.physics.add.sprite(TILE_SIZE * SCALE_FACTOR * 1.5, TILE_SIZE * SCALE_FACTOR * 1.5, 'hero');
+        this.player.setScale(SCALE_FACTOR);
+        this.player.body.setOffset(12, 16); // Ajustar el offset del cuerpo de colisión si el sprite no lo rellena
+        this.player.setCollideWorldBounds(true); // El jugador no puede salir del mapa
+        this.player.setDepth(10); // Asegura que el jugador esté por encima de las capas del mapa
 
-        // CAMBIO IMPORTANTE: Asegurar que se dibuje encima de todo
-        this.door.setDepth(10);
-        // CAMBIO IMPORTANTE: Pintarla de amarillo para verla si el fondo es oscuro
-        this.door.setTint(0xffff00);
 
-        this.hideDoorUnderCrate(map);
-
-        // --- 5. ENEMIGOS ---
-        this.enemies.add(new Enemy(this, 300, 300));
-        this.enemies.add(new Enemy(this, 500, 100));
-        this.enemies.add(new Enemy(this, 500, 500));
-
-        // --- 6. COLISIONES ---
+        // --- 4. COLISIONES ---
+        // El jugador colisiona con las paredes fijas
         this.physics.add.collider(this.player, this.wallsLayer);
-        this.physics.add.collider(this.player, this.seals);
-        this.physics.add.collider(this.enemies, this.wallsLayer, (e) => e.changeDirection());
-        this.physics.add.collider(this.enemies, this.seals, (e) => e.changeDirection());
-        this.physics.add.collider(this.player, this.enemies, () => this.playerDie());
+        this.physics.add.collider(this.player, this.staticObjectsLayer);
+        this.physics.add.collider(this.player, this.kitkatLayer); // El jugador colisiona con las cajas destructibles
 
-        // DETECTAR VICTORIA (Overlap en lugar de Collider para pasar por encima)
-        this.physics.add.overlap(this.player, this.door, () => this.checkWin(), null, this);
+        // --- 5. ENTRADAS (Controles del jugador) ---
+        this.cursors = this.input.keyboard.createCursorKeys(); // Flechas del teclado
+        this.spaceBar = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE); // Barra espaciadora
 
-        // --- 7. INPUT ---
-        this.cursors = this.input.keyboard.createCursorKeys();
-        this.input.keyboard.on('keydown-SPACE', () => this.placeSeal());
+        // --- 6. ANIMACIONES (si tienes spritesheet para el jugador) ---
+        // Ejemplo de animación (necesitas definir los frames en BootScene)
+        // this.anims.create({
+        //     key: 'walk',
+        //     frames: this.anims.generateFrameNumbers('hero', { start: 0, end: 3 }),
+        //     frameRate: 10,
+        //     repeat: -1
+        // });
 
-        // --- 8. UI ---
-        this.scoreText = this.add.text(10, 10, 'ENEMIGOS: 3', {
-            fontSize: '20px', fill: '#ffffff', fontFamily: 'Courier New', backgroundColor: '#000000'
-        }).setScrollFactor(0).setDepth(20); // UI encima de todo
 
-        this.infoText = this.add.text(400, 300, '', {
-            fontSize: '40px', fill: '#00ff00', fontFamily: 'Courier New', align: 'center', backgroundColor: '#000000aa'
-        }).setOrigin(0.5).setScrollFactor(0).setVisible(false).setDepth(20);
+        // --- 7. AJUSTAR LÍMITES DEL MUNDO FÍSICO ---
+        // Esto es importante para que la cámara y las físicas sepan dónde termina el mapa escalado
+        const worldWidth = map.widthInPixels * SCALE_FACTOR;
+        const worldHeight = map.heightInPixels * SCALE_FACTOR;
+        this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
 
-        // --- 9. CÁMARA ---
-        this.cameras.main.startFollow(this.player);
-        this.cameras.main.setBounds(0, 0, map.widthInPixels * 3, map.heightInPixels * 3);
+
+        // --- 8. CÁMARA ---
+        // Configuración para mostrar todo el mapa completo y centrado.
+        // Ya no necesitamos startFollow porque queremos una vista completa.
+        // this.cameras.main.startFollow(this.player);
+
+        this.cameras.main.setBounds(0, 0, worldWidth, worldHeight); // Establece límites del mundo para la cámara
+        this.cameras.main.centerOn(worldWidth / 2, worldHeight / 2); // Centra la cámara en el centro del mapa
+
+        // Calcular el zoom para que todo el mapa quepa exactamente en la ventana del juego
+        // (que ya hemos configurado como cuadrada en main.js)
+        const zoomX = this.scale.width / worldWidth;
+        const zoomY = this.scale.height / worldHeight;
+        this.cameras.main.setZoom(Math.min(zoomX, zoomY)); // Usa el menor zoom para que todo quepa
+
+        // Asegurarse de que la cámara no tenga desplazamiento inicial
+        this.cameras.main.setScroll(0, 0);
+
+        // --- 9. OTROS ---
+        // Aquí puedes añadir la lógica para colocar enemigos, bombas, etc.
     }
 
-    hideDoorUnderCrate(map) {
-        const crateTiles = this.wallsLayer.filterTiles(tile => tile.index === 2);
-
-        if (crateTiles.length > 0) {
-            const randomTile = Phaser.Utils.Array.GetRandom(crateTiles);
-
-            // Ajuste de coordenadas preciso
-            const TILE_SIZE = 48; // 16 * 3
-            const x = randomTile.x * TILE_SIZE + (TILE_SIZE / 2);
-            const y = randomTile.y * TILE_SIZE + (TILE_SIZE / 2);
-
-            this.door.setPosition(x, y);
-
-            this.doorTileX = randomTile.x;
-            this.doorTileY = randomTile.y;
-
-            console.log(`SECRETO: La puerta está en coordenadas de mapa: ${x}, ${y}`);
-        } else {
-            console.warn("¡No hay cajas para esconder la puerta!");
-        }
-    }
-
-    checkDoorReveal(tileX, tileY) {
-        // Verificar coordenadas lógicas del Tile
-        if (tileX === this.doorTileX && tileY === this.doorTileY) {
-            console.log("¡PUERTA REVELADA!");
-            this.door.setVisible(true);
-            this.door.setActive(true);
-        }
-    }
-
-    updateUI() {
-        const count = this.enemies.countActive();
-        this.scoreText.setText(`ENEMIGOS: ${count}`);
-
-        if (count === 0 && this.door.visible) {
-            this.scoreText.setText('¡ESCAPE ABIERTO!');
-            this.scoreText.setColor('#00ff00');
-        }
-    }
-
-    checkWin() {
-        if (this.door.visible && this.enemies.countActive() === 0) {
-            this.physics.pause();
-            this.infoText.setText('¡SECTOR PURIFICADO!\nContrato Completado');
-            this.infoText.setVisible(true);
-            // Reiniciar
-            this.time.delayedCall(3000, () => this.scene.restart());
-        }
-    }
-
-    playerDie() {
-        this.physics.pause();
-        this.player.setTint(0xff0000);
-        this.infoText.setText('CONTRATO ANULADO\nSeñal Perdida');
-        this.infoText.setColor('#ff0000');
-        this.infoText.setVisible(true);
-        this.time.delayedCall(2000, () => this.scene.restart());
-    }
-
-    placeSeal() {
-        const TILE_SIZE = 48;
-        const x = Math.floor((this.player.x) / TILE_SIZE) * TILE_SIZE + (TILE_SIZE / 2);
-        const y = Math.floor((this.player.y) / TILE_SIZE) * TILE_SIZE + (TILE_SIZE / 2);
-
-        const bombsAtLocation = this.seals.getChildren().filter(seal => seal.x === x && seal.y === y);
-        if (bombsAtLocation.length > 0) return;
-
-        this.seals.add(new Seal(this, x, y));
-    }
-
-    update() {
-        this.updateUI();
-        if (!this.player || !this.cursors || this.physics.world.isPaused) return;
-
-        const speed = 200;
-        this.player.setVelocity(0);
+    update(time, delta) {
+        // --- MOVER JUGADOR ---
+        this.player.setVelocity(0); // Detiene al jugador si no se presiona nada
 
         if (this.cursors.left.isDown) {
-            this.player.setVelocityX(-speed);
-            this.player.setFlipX(true);
+            this.player.setVelocityX(-160);
+            // this.player.anims.play('walk', true); // Si tienes animación de caminar
         } else if (this.cursors.right.isDown) {
-            this.player.setVelocityX(speed);
-            this.player.setFlipX(false);
+            this.player.setVelocityX(160);
+            // this.player.anims.play('walk', true);
         } else if (this.cursors.up.isDown) {
-            this.player.setVelocityY(-speed);
+            this.player.setVelocityY(-160);
+            // this.player.anims.play('walk', true);
         } else if (this.cursors.down.isDown) {
-            this.player.setVelocityY(speed);
+            this.player.setVelocityY(160);
+            // this.player.anims.play('walk', true);
         }
+        // else {
+        //     this.player.anims.stop(); // Detiene la animación si no se mueve
+        // }
 
-        this.player.body.velocity.normalize().scale(speed);
+        // --- LANZAR BOMBA (Ejemplo) ---
+        if (Phaser.Input.Keyboard.JustDown(this.spaceBar)) {
+            console.log('Bomba lanzada!');
+            // Aquí iría la lógica para crear una bomba
+        }
     }
 }

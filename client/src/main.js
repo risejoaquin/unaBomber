@@ -1,25 +1,38 @@
-// client/src/main.js
-import { BootScene } from './scenes/BootScene.js';
-import { GameScene } from './scenes/GameScene.js';
+import Phaser from 'phaser'; // ¡Esta debe seguir comentada!
+import BootScene from './scenes/BootScene.js';
+import GameScene from './scenes/GameScene.js';
 
-// --- CONFIGURACIÓN PRINCIPAL DE PHASER ---
+// --- CONFIGURACIÓN DIMENSIONES DEL JUEGO ---
+// Dimensiones de tu mapa en Tiled (en tiles)
+const TILE_MAP_WIDTH = 25;
+const TILE_MAP_HEIGHT = 25;
+const TILE_SIZE = 16; // Tamaño de cada tile en píxeles
+const SCALE_FACTOR = 3; // El factor de escala que aplicas en GameScene.js para los gráficos
+
+// Calcular el tamaño deseado para la ventana del juego
+// para que coincida exactamente con el mapa escalado
+const gameWidth = TILE_MAP_WIDTH * TILE_SIZE * SCALE_FACTOR;
+const gameHeight = TILE_MAP_HEIGHT * TILE_SIZE * SCALE_FACTOR;
+
 const config = {
     type: Phaser.AUTO,
-    width: 800,
-    height: 600,
-    backgroundColor: '#0a0a12', // Color de fondo oscuro
-    parent: 'game-container',
-    pixelArt: true, // Vital para que los sprites no se vean borrosos al escalar
+    // Establecer el ancho y alto del juego para que coincidan con el mapa escalado
+    width: gameWidth,
+    height: gameHeight,
+    parent: 'game-container', // ID del div en index.html donde se renderizará el juego
+    pixelArt: true, // Asegura que los gráficos de baja resolución se vean nítidos
     physics: {
         default: 'arcade',
         arcade: {
-            gravity: { y: 0 }, // Top-down, sin gravedad
-            debug: false // Cambia a true si quieres ver las cajas de colisión rojas/azules
+            gravity: { y: 0 }, // No hay gravedad en un juego top-down
+            debug: false // Ponlo en true para ver las cajas de colisión (muy útil para depurar)
         }
     },
-    // Importante: El orden importa. BootScene va primero.
-    scene: [BootScene, GameScene]
+    scene: [BootScene, GameScene], // Las escenas de tu juego
+    scale: {
+        mode: Phaser.Scale.FIT, // Ajusta la ventana del juego a la pantalla del navegador manteniendo la relación de aspecto
+        autoCenter: Phaser.Scale.CENTER_BOTH, // Centra el juego horizontal y verticalmente en la pantalla
+    }
 };
 
-// Iniciar el juego
-const game = new Phaser.Game(config);
+new Phaser.Game(config);

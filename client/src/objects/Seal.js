@@ -1,33 +1,28 @@
-import { Explosion } from './Explosion.js';
+import Phaser from 'phaser'; // <<-- ¡NECESITAS IMPORTAR PHASER AQUÍ TAMBIÉN!
+import Explosion from '../objects/Explosion.js'; // Este import es correcto para Explosion si también es default
 
-export class Seal extends Phaser.Physics.Arcade.Sprite {
+export default class Seal extends Phaser.Physics.Arcade.Sprite { // <<-- ¡CAMBIAR A 'export default'!
     constructor(scene, x, y) {
-        // Usamos la imagen 'seal_sprite' (la calavera)
         super(scene, x, y, 'seal_sprite');
-
         scene.add.existing(this);
-        scene.physics.add.existing(this);
+        scene.physics.add.existing(this, true); // 'true' para que sea estático (no se mueva por colisiones, si es el objetivo)
 
-        this.scene = scene; // Guardar referencia para poder explotar después
-        this.range = 2;     // Radio de explosión (2 bloques)
+        this.setScale(3);
+        // hacemos el cuerpo de colisión un poco más pequeño que el sprite visual
+        this.body.setSize(this.width * 0.8, this.height * 0.8);
+        this.setDepth(5);
 
-        // --- APARIENCIA ---
-        this.setScale(2.5); // Tamaño de la calavera
+        this.range = 2; // Rango de explosión en tiles
 
-        // --- FÍSICAS ---
-        this.body.setImmovable(true);
-        this.body.setSize(12, 12);
-
-        // --- TEMPORIZADOR ---
-        // Explotar después de 3 segundos
-        scene.time.delayedCall(3000, () => {
+        // Temporizador para explotar (3 segundos)
+        this.scene.time.delayedCall(3000, () => {
             this.explode();
         });
 
-        // Animación de latido (Peligro)
-        scene.tweens.add({
+        // Animación simple de "palpitar" antes de explotar
+        this.scene.tweens.add({
             targets: this,
-            scale: 3,
+            scale: 3.5,
             duration: 500,
             yoyo: true,
             repeat: -1
@@ -35,10 +30,12 @@ export class Seal extends Phaser.Physics.Arcade.Sprite {
     }
 
     explode() {
-        // Generar la explosión lógica y visual
-        new Explosion(this.scene, this.x, this.y, this.range);
+        if (this.active) { // Asegúrate de que la calavera sigue activa
+            // Crear el objeto Explosión en la posición de la bomba
+            new Explosion(this.scene, this.x, this.y, this.range); // <-- Si Explosion necesita 'range', pásalo
 
-        // Destruir este objeto (la calavera desaparece)
-        this.destroy();
+            // Destruir el objeto bomba (la calavera)
+            this.destroy();
+        }
     }
 }
