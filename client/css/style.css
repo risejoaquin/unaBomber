@@ -1,0 +1,26 @@
+/* client/css/style.css */
+body {
+    margin: 0;
+    padding: 0;
+    /* Fondo oscuro para la estética cyberpunk */
+    background-color: #0a0a12;
+    color: #ffffff;
+    font-family: 'Courier New', Courier, monospace;
+    /* Fuente tipo terminal */
+
+    /* Centrar el juego en la pantalla */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+    /* Evita barras de desplazamiento */
+}
+
+/* Estilo para el canvas que genera Phaser */
+canvas {
+    /* Un sutil resplandor de neón alrededor del juego */
+    box-shadow: 0 0 20px rgba(0, 255, 255, 0.15), 0 0 10px rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+    border: 1px solid #333;
+}
