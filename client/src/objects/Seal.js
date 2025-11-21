@@ -1,42 +1,44 @@
-// client/src/objects/Seal.js
+import { Explosion } from './Explosion.js';
+
 export class Seal extends Phaser.Physics.Arcade.Sprite {
     constructor(scene, x, y) {
-        // Usamos el sprite 'hero' temporalmente
-        super(scene, x, y, 'hero');
+        // Usamos la imagen 'seal_sprite' (la calavera)
+        super(scene, x, y, 'seal_sprite');
 
-        // Añadir a la escena y a las físicas
         scene.add.existing(this);
         scene.physics.add.existing(this);
 
+        this.scene = scene; // Guardar referencia para poder explotar después
+        this.range = 2;     // Radio de explosión (2 bloques)
+
         // --- APARIENCIA ---
-        this.setScale(2);         // Tamaño
-        this.setTint(0xff0000);   // Color ROJO para indicar peligro
+        this.setScale(2.5); // Tamaño de la calavera
 
         // --- FÍSICAS ---
-        this.body.setImmovable(true); // Nadie puede mover la bomba empujándola
-        this.body.setSize(14, 14);    // Tamaño del choque
+        this.body.setImmovable(true);
+        this.body.setSize(12, 12);
 
-        // --- LÓGICA DE DETONACIÓN ---
-        // Esperar 3000 milisegundos (3 segundos) y luego explotar
+        // --- TEMPORIZADOR ---
+        // Explotar después de 3 segundos
         scene.time.delayedCall(3000, () => {
             this.explode();
         });
 
-        // Animación de "palpitar" para indicar que va a explotar
+        // Animación de latido (Peligro)
         scene.tweens.add({
             targets: this,
-            alpha: 0.5,       // Se hace medio transparente
+            scale: 3,
             duration: 500,
-            yoyo: true,       // Va y vuelve
-            repeat: -1        // Infinito hasta que explote
+            yoyo: true,
+            repeat: -1
         });
     }
 
     explode() {
-        console.log("¡BOOM! El sello ha detonado");
-        // Aquí pondremos la lógica de fuego y daño en el futuro
+        // Generar la explosión lógica y visual
+        new Explosion(this.scene, this.x, this.y, this.range);
 
-        // Por ahora, solo desaparece
+        // Destruir este objeto (la calavera desaparece)
         this.destroy();
     }
 }

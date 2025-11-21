@@ -1,5 +1,5 @@
-// client/src/scenes/GameScene.js
-import { Seal } from '../objects/Seal.js'; // <--- Importamos la bomba
+import { Seal } from '../objects/Seal.js';
+import { Enemy } from '../objects/Enemy.js'; // <--- IMPORTAR
 
 export class GameScene extends Phaser.Scene {
     constructor() {
@@ -10,16 +10,16 @@ export class GameScene extends Phaser.Scene {
         // --- 1. MAPA ---
         const map = this.make.tilemap({ key: 'map_level1' });
         const tileset = map.addTilesetImage('dungeon_tiles', 'tileset_img');
+
         this.wallsLayer = map.createLayer('ground', tileset, 0, 0);
         this.wallsLayer.setScale(3);
         this.wallsLayer.setCollision([1, 2]);
 
-        // --- 2. GRUPO DE BOMBAS (SELLOS) ---
-        // Creamos un grupo para manejar todas las bombas que pongamos
-        this.seals = this.physics.add.group({
-            classType: Seal,
-            runChildUpdate: true
-        });
+        // --- 2. GRUPOS ---
+        this.seals = this.physics.add.group({ classType: Seal, runChildUpdate: true });
+
+        // NUEVO: Grupo de Enemigos
+        this.enemies = this.physics.add.group({ classType: Enemy, runChildUpdate: true });
 
         // --- 3. JUGADOR ---
         this.player = this.physics.add.sprite(100, 100, 'hero');
@@ -28,41 +28,55 @@ export class GameScene extends Phaser.Scene {
         this.player.body.setOffset(2, 16);
         this.player.setCollideWorldBounds(true);
 
-        // --- 4. COLISIONES ---
-        this.physics.add.collider(this.player, this.wallsLayer);
+        // --- 4. SPAWN DE ENEMIGOS (Manual por ahora) ---
+        // Vamos a crear 3 enemigos en posiciones libres
+        this.enemies.add(new Enemy(this, 300, 300));
+        this.enemies.add(new Enemy(this, 500, 100));
+        this.enemies.add(new Enemy(this, 500, 500));
 
-        // El jugador choca con las bombas (para no atravesarlas)
+        // --- 5. COLISIONES ---
+        this.physics.add.collider(this.player, this.wallsLayer);
         this.physics.add.collider(this.player, this.seals);
 
-        // --- 5. CONTROLES ---
-        this.cursors = this.input.keyboard.createCursorKeys();
+        // Enemigos chocan con muros y bombas
+        this.physics.add.collider(this.enemies, this.wallsLayer, (enemy) => enemy.changeDirection());
+        this.physics.add.collider(this.enemies, this.seals, (enemy) => enemy.changeDirection());
 
-        // DETECTAR TECLA ESPACIO (PONER BOMBA)
-        this.input.keyboard.on('keydown-SPACE', () => {
-            this.placeSeal();
+        // NUEVO: GAME OVER (Enemigo toca Jugador)
+        this.physics.add.collider(this.player, this.enemies, () => {
+            this.playerDie();
         });
 
-        // --- 6. CÁMARA ---
+        // --- 6. INPUT ---
+        this.cursors = this.input.keyboard.createCursorKeys();
+        this.input.keyboard.on('keydown-SPACE', () => this.placeSeal());
+
+        // --- 7. CÁMARA ---
         this.cameras.main.startFollow(this.player);
         this.cameras.main.setBounds(0, 0, map.widthInPixels * 3, map.heightInPixels * 3);
     }
 
-    placeSeal() {
-        // 1. Calcular el centro del tile (cuadrito) más cercano
-        // El mapa está escalado x3 y los tiles son de 16px. 16 * 3 = 48px por celda.
-        const TILE_SIZE = 48;
+    playerDie() {
+        // Pausar físicas
+        this.physics.pause();
+        this.player.setTint(0xff0000);
 
-        // Matemáticas de Grid: Redondear la posición del jugador a la celda más cercana
+        console.log("GAME OVER - Contrato Anulado");
+
+        // Reiniciar escena después de 1 segundo
+        this.time.delayedCall(1000, () => {
+            this.scene.restart();
+        });
+    }
+
+    placeSeal() {
+        const TILE_SIZE = 48;
         const x = Math.floor((this.player.x) / TILE_SIZE) * TILE_SIZE + (TILE_SIZE / 2);
         const y = Math.floor((this.player.y) / TILE_SIZE) * TILE_SIZE + (TILE_SIZE / 2);
 
-        // 2. Verificar si ya hay una bomba ahí (para no poner una encima de otra)
         const bombsAtLocation = this.seals.getChildren().filter(seal => seal.x === x && seal.y === y);
-        if (bombsAtLocation.length > 0) {
-            return; // Ya hay bomba, no hacer nada
-        }
+        if (bombsAtLocation.length > 0) return;
 
-        // 3. Crear la bomba
         const seal = new Seal(this, x, y);
         this.seals.add(seal);
     }
@@ -72,6 +86,9 @@ export class GameScene extends Phaser.Scene {
 
         const speed = 200;
         this.player.setVelocity(0);
+
+        // Solo mover si el jugador está vivo (physics no pausadas)
+        if (this.physics.world.isPaused) return;
 
         if (this.cursors.left.isDown) {
             this.player.setVelocityX(-speed);
