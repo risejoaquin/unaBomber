@@ -21,6 +21,9 @@ export class BootScene extends Phaser.Scene {
         // 5. Carga imagen de enemigos.
         this.load.image('enemy', 'assets/sprites/enemy.png');
 
+        // 6. carga imagen puerta de salida.
+        this.load.image('door', 'assets/sprites/door.png');
+
     }
 
     create() {

@@ -34,6 +34,10 @@ export class Explosion {
                         // Dibujamos el fuego AQUÍ (para que se vea que explota la caja)
                         this.createFire(checkX, checkY);
 
+                        if (this.scene.checkDoorReveal) {
+                            this.scene.checkDoorReveal(tile.x, tile.y);
+                        }
+
                         // BORRAMOS LA CAJA DEL MAPA
                         scene.wallsLayer.removeTileAt(tile.x, tile.y);
 
