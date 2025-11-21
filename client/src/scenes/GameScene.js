@@ -1,82 +1,92 @@
 // client/src/scenes/GameScene.js
+import { Seal } from '../objects/Seal.js'; // <--- Importamos la bomba
+
 export class GameScene extends Phaser.Scene {
     constructor() {
         super('GameScene');
     }
 
     create() {
-        // --- 1. CREAR EL MAPA ---
-        // Usamos el apodo del JSON definido en BootScene
+        // --- 1. MAPA ---
         const map = this.make.tilemap({ key: 'map_level1' });
-
-        // VINCULAR IMAGEN AL JSON (Aquí estaba tu error probable)
-        // 1er parámetro: 'dungeon_tiles' (Es el nombre que está ESCRITO DENTRO del archivo level1.json)
-        // 2do parámetro: 'tileset_img' (Es el apodo que definimos en BootScene.js)
         const tileset = map.addTilesetImage('dungeon_tiles', 'tileset_img');
-
-        // CREAR LA CAPA VISUAL
-        // 1er parámetro: 'ground' (Es el nombre de la capa ESCRITO DENTRO del level1.json)
         this.wallsLayer = map.createLayer('ground', tileset, 0, 0);
-
-        // Escalar el mapa para que se vea más grande (x3)
         this.wallsLayer.setScale(3);
-
-        // DEFINIR COLISIONES
-        // Los tiles con ID 1 (muro duro) y 2 (caja) serán sólidos.
         this.wallsLayer.setCollision([1, 2]);
 
-        // --- 2. CREAR AL JUGADOR (Kuroro) ---
-        // Lo ponemos en una posición inicial segura
-        // Usamos el apodo 'hero' definido en BootScene
-        this.player = this.physics.add.sprite(100, 100, 'hero');
-        this.player.setScale(3); // Escalar al héroe igual que el mapa
+        // --- 2. GRUPO DE BOMBAS (SELLOS) ---
+        // Creamos un grupo para manejar todas las bombas que pongamos
+        this.seals = this.physics.add.group({
+            classType: Seal,
+            runChildUpdate: true
+        });
 
-        // Ajustar la caja de colisión (hitbox) para que sea más pequeña en los pies
+        // --- 3. JUGADOR ---
+        this.player = this.physics.add.sprite(100, 100, 'hero');
+        this.player.setScale(3);
         this.player.body.setSize(12, 14);
         this.player.body.setOffset(2, 16);
-
-        // Evitar que salga de la pantalla
         this.player.setCollideWorldBounds(true);
 
-        // --- 3. ACTIVAR CHOQUES ---
-        // El jugador chocará con la capa de muros
+        // --- 4. COLISIONES ---
         this.physics.add.collider(this.player, this.wallsLayer);
 
-        // --- 4. ACTIVAR TECLADO ---
+        // El jugador choca con las bombas (para no atravesarlas)
+        this.physics.add.collider(this.player, this.seals);
+
+        // --- 5. CONTROLES ---
         this.cursors = this.input.keyboard.createCursorKeys();
 
-        // --- 5. CÁMARA (Opcional, para seguir al jugador si el mapa es grande) ---
+        // DETECTAR TECLA ESPACIO (PONER BOMBA)
+        this.input.keyboard.on('keydown-SPACE', () => {
+            this.placeSeal();
+        });
+
+        // --- 6. CÁMARA ---
         this.cameras.main.startFollow(this.player);
         this.cameras.main.setBounds(0, 0, map.widthInPixels * 3, map.heightInPixels * 3);
     }
 
-    update() {
-        // --- BUCLE PRINCIPAL DEL JUEGO (Control de movimiento) ---
+    placeSeal() {
+        // 1. Calcular el centro del tile (cuadrito) más cercano
+        // El mapa está escalado x3 y los tiles son de 16px. 16 * 3 = 48px por celda.
+        const TILE_SIZE = 48;
 
-        if (!this.player || !this.cursors) return;
+        // Matemáticas de Grid: Redondear la posición del jugador a la celda más cercana
+        const x = Math.floor((this.player.x) / TILE_SIZE) * TILE_SIZE + (TILE_SIZE / 2);
+        const y = Math.floor((this.player.y) / TILE_SIZE) * TILE_SIZE + (TILE_SIZE / 2);
 
-        const speed = 200; // Velocidad de movimiento
-
-        // Resetear velocidad en cada frame para que se detenga si no tocas nada
-        this.player.setVelocity(0);
-
-        // Movimiento Horizontal
-        if (this.cursors.left.isDown) {
-            this.player.setVelocityX(-speed);
-            this.player.setFlipX(true); // Mirar a la izquierda
-        } else if (this.cursors.right.isDown) {
-            this.player.setVelocityX(speed);
-            this.player.setFlipX(false); // Mirar a la derecha
+        // 2. Verificar si ya hay una bomba ahí (para no poner una encima de otra)
+        const bombsAtLocation = this.seals.getChildren().filter(seal => seal.x === x && seal.y === y);
+        if (bombsAtLocation.length > 0) {
+            return; // Ya hay bomba, no hacer nada
         }
 
-        // Movimiento Vertical
+        // 3. Crear la bomba
+        const seal = new Seal(this, x, y);
+        this.seals.add(seal);
+    }
+
+    update() {
+        if (!this.player || !this.cursors) return;
+
+        const speed = 200;
+        this.player.setVelocity(0);
+
+        if (this.cursors.left.isDown) {
+            this.player.setVelocityX(-speed);
+            this.player.setFlipX(true);
+        } else if (this.cursors.right.isDown) {
+            this.player.setVelocityX(speed);
+            this.player.setFlipX(false);
+        }
+
         if (this.cursors.up.isDown) {
             this.player.setVelocityY(-speed);
         } else if (this.cursors.down.isDown) {
             this.player.setVelocityY(speed);
         }
 
-        // Normalizar velocidad diagonal (para que no corra más rápido en diagonal)
         this.player.body.velocity.normalize().scale(speed);
     }
 }

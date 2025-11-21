@@ -1,14 +1,9 @@
 {
-    "width": 15,
+    "compressionlevel": -1,
     "height": 13,
-    "tilewidth": 16,
-    "tileheight": 16,
+    "infinite": false,
     "layers": [
         {
-            "name": "ground",
-            "type": "tilelayer",
-            "width": 15,
-            "height": 13,
             "data": [
                 1,
                 1,
@@ -205,18 +200,41 @@
                 1,
                 1,
                 1
-            ]
+            ],
+            "height": 13,
+            "id": 1,
+            "name": "ground",
+            "opacity": 1,
+            "type": "tilelayer",
+            "visible": true,
+            "width": 15,
+            "x": 0,
+            "y": 0
         }
     ],
+    "nextlayerid": 2,
+    "nextobjectid": 1,
+    "orientation": "orthogonal",
+    "renderorder": "right-down",
+    "tiledversion": "1.10.2",
+    "tileheight": 16,
     "tilesets": [
         {
-            "name": "dungeon_tiles",
-            "firstgid": 0,
-            "tilewidth": 16,
-            "tileheight": 16,
-            "spacing": 0,
+            "columns": 32,
+            "firstgid": 1,
+            "image": "../tilesets/0x72_DungeonTilesetII_v1.7.png",
+            "imageheight": 512,
+            "imagewidth": 512,
             "margin": 0,
-            "image": "../tilesets/0x72_DungeonTilesetII_v1.7.png"
+            "name": "dungeon_tiles",
+            "spacing": 0,
+            "tilecount": 1024,
+            "tileheight": 16,
+            "tilewidth": 16
         }
-    ]
+    ],
+    "tilewidth": 16,
+    "type": "map",
+    "version": "1.10",
+    "width": 15
 }
