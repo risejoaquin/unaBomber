@@ -1,90 +1,57 @@
-// --- 1. IMPORTACIONES (CRUCIALES PARA EVITAR PANTALLA NEGRA) ---
 import Phaser from 'phaser';
-// Nota los dos puntos "../" para salir de la carpeta 'scenes' y entrar en 'objects'
-import Player from '../objects/Player.js';
-import Seal from '../objects/Seal.js';
-import Enemy from '../objects/Enemy.js';
-import Explosion from '../objects/Explosion.js';
+import Player from '../objects/Player.js'; // Ruta de importación revisada
 
 export default class GameScene extends Phaser.Scene {
     constructor() {
         super('GameScene');
-        // Inicializamos variables para que estén disponibles en toda la clase
         this.player = null;
         this.cursors = null;
     }
 
     create() {
-        // Constantes para configuración
-        const TILE_SIZE = 16;
-        const SCALE_FACTOR = 3; // Factor de escala global
+        console.log("--- GameScene ha comenzado (Busca el mapa y el personaje) ---");
+        const SCALE_FACTOR = 3;
 
-        // --- 2. MAPA Y TILESET ---
+        // 1. Carga y configuración del Mapa
         const map = this.make.tilemap({ key: 'map_level1' });
-        // Asegúrate que '0x72_DungeonTilesetII_v1.7' es el nombre en Tiled
-        // y 'dungeon_tileset_image' es el key usado en BootScene.preload
-        const tileset = map.addTilesetImage('0x72_DungeonTilesetII_v1.7', 'dungeon_tileset_image');
 
-        // Escalamos el contenedor del mapa completo. Las capas creadas después heredarán esto.
+        // Nombres estrictos: Nombre del Tileset en Tiled, Key de la imagen en BootScene
+        const tileset = map.addTilesetImage('0x72_DungeonTilesetII_v1.7', 'dungeon_tileset_image');
         map.setScale(SCALE_FACTOR);
 
-        // --- 3. CAPAS VISUALES (El orden importa: primero el fondo) ---
-        // Capa de Suelo
+        // 2. Capas y Colisiones
         this.groundLayer = map.createLayer('ground', tileset, 0, 0);
-
-        // Capa de Muros (Colisión)
         this.wallsLayer = map.createLayer('walls', tileset, 0, 0);
-        // Activa colisiones para los tiles marcados en Tiled con la propiedad 'collides: true'
+
+        // Capa de colisión (asumiendo que tiene la propiedad 'collides: true' en Tiled)
         this.wallsLayer.setCollisionByProperty({ collides: true });
 
-        // Capa de Objetos Fijos
-        this.staticObjectsLayer = map.createLayer('static_objects', tileset, 0, 0);
-        this.staticObjectsLayer.setCollisionByProperty({ collides: true });
-
-        // Capa de Objetos Destructibles
-        this.kitkatLayer = map.createLayer('kitkat', tileset, 0, 0);
-        this.kitkatLayer.setCollisionByProperty({ collides: true });
-
-
-        // --- 4. JUGADOR (Lo creamos DESPUÉS de las capas para que se vea encima) ---
-        // Posición inicial (Tile 5,5). Como el mapa está escalado, Phaser ajusta la posición visualmente.
-        this.player = new Player(this, TILE_SIZE * 5, TILE_SIZE * 5, 'player');
-        // Escalamos el jugador también para que coincida con el mapa
+        // 3. Jugador
+        // Posición inicial (tile 5, 5, escalado)
+        const startX = 5 * 16 * SCALE_FACTOR;
+        const startY = 5 * 16 * SCALE_FACTOR;
+        this.player = new Player(this, startX, startY);
         this.player.setScale(SCALE_FACTOR);
-        this.physics.add.existing(this.player);
-        this.player.body.setCollideWorldBounds(true);
 
-        // Ajustar el tamaño del cuerpo de colisión si es necesario (opcional, depende de tu sprite)
-        // this.player.body.setSize(TILE_SIZE * 0.8, TILE_SIZE * 0.8);
-        // this.player.body.setOffset(TILE_SIZE * 0.1, TILE_SIZE * 0.2);
-
-
-        // --- 5. COLISIONES ---
+        // 4. Colisiones y Cámara
         this.physics.add.collider(this.player, this.wallsLayer);
-        this.physics.add.collider(this.player, this.staticObjectsLayer);
-        this.physics.add.collider(this.player, this.kitkatLayer);
 
-
-        // --- 6. CÁMARA Y LÍMITES DEL MUNDO ---
-        // Calculamos el tamaño real del mundo escalado
+        // Límites del mundo
         const worldWidth = map.widthInPixels * SCALE_FACTOR;
         const worldHeight = map.heightInPixels * SCALE_FACTOR;
+        this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
 
-        // Establecemos los límites físicos del mundo
-        this.physics.world.bounds.width = worldWidth;
-        this.physics.world.bounds.height = worldHeight;
-
-        // Configuración de la cámara
+        // Cámara
         this.cameras.main.startFollow(this.player);
-        this.cameras.main.setZoom(1); // Zoom 1 porque ya escalamos los objetos
+        this.cameras.main.setZoom(1);
         this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
 
-        // Configurar controles (necesario si Player.js los usa en update)
+        // Controles globales
         this.cursors = this.input.keyboard.createCursorKeys();
+        console.log("--- Configuración de GameScene finalizada ---");
     }
 
     update(time, delta) {
-        // Llamamos al método update del jugador si existe
         if (this.player) {
             this.player.update(time, delta);
         }

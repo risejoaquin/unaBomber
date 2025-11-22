@@ -1,4 +1,3 @@
-// client/src/scenes/BootScene.js
 import Phaser from 'phaser';
 
 export default class BootScene extends Phaser.Scene {
@@ -7,16 +6,18 @@ export default class BootScene extends Phaser.Scene {
     }
 
     preload() {
-        // Carga la imagen del tileset con el key que vas a usar en GameScene.js
-        this.load.image('dungeon_tileset_image', 'assets/tilesets/dungeon_tileset.png'); // <<-- Nuevo key recomendado
-        // Carga el JSON del mapa
-        this.load.tilemapTiledJSON('map_levels', 'assets/maps/level1.json');
+        console.log("BOOT SCENE: Cargando assets...");
 
-        // ... el resto de tus spritesheets ...
+        // Tileset: Asegúrate de que el nombre del archivo es exactamente '0x72_DungeonTilesetII_v1.7.png'
+        this.load.image('dungeon_tileset_image', 'assets/tilesets/0x72_DungeonTilesetII_v1.7.png');
+
+        // Mapa: Asegúrate de que el nombre del archivo es exactamente 'level1.json'
+        this.load.tilemapTiledJSON('map_level1', 'assets/maps/level1.json');
+
+        // Sprites: 16x16 frames, 4 frames
         this.load.spritesheet('player', 'assets/sprites/player.png', { frameWidth: 16, frameHeight: 16 });
-        this.load.spritesheet('seal', 'assets/sprites/seal.png', { frameWidth: 16, frameHeight: 16 });
-        this.load.spritesheet('enemy', 'assets/sprites/enemy.png', { frameWidth: 16, frameHeight: 16 });
-        this.load.spritesheet('explosion', 'assets/sprites/explosion.png', { frameWidth: 16, frameHeight: 16 });
+
+        console.log("BOOT SCENE: Carga terminada.");
     }
 
     create() {
