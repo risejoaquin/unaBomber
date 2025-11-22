@@ -1,126 +1,166 @@
 import Phaser from 'phaser';
+import { TILE_SIZE } from '../main.js'; // Importa el tamaño del tile para cálculos precisos
 
-/**
- * Player: Representa al jugador controlable en el juego.
- * Maneja el movimiento, la colocación de bombas y su ciclo de vida (morir/reaparecer).
- */
-export default class Player extends Phaser.GameObjects.Sprite {
+export default class Player extends Phaser.Physics.Arcade.Sprite {
     constructor(scene, x, y) {
-        // Llama al constructor de la clase base Sprite
-        // 'player_sprite' es la KEY del spritesheet cargado en BootScene
+        // Llama al constructor de la clase padre (Sprite de Arcade Physics)
+        // 'player_sprite' es la KEY que debes haber definido en BootScene.js
         super(scene, x, y, 'player_sprite');
 
-        // Añade el jugador a la escena y al sistema de físicas de la escena
+        // Añade el sprite del jugador a la escena para que se dibuje
         scene.add.existing(this);
+        // Añade el cuerpo físico del jugador al sistema de físicas de la escena
         scene.physics.add.existing(this);
 
-        // Configuración del cuerpo de físicas
-        this.body.setCollideWorldBounds(true); // El jugador no puede salir de los límites del mundo
-        this.body.setSize(10, 10);             // Ajusta el tamaño de la hitbox del cuerpo físico
-        this.body.setOffset(3, 6);             // Desplaza la hitbox para centrarla mejor con el sprite de 16x16
+        // Configuración del cuerpo físico
+        this.setCollideWorldBounds(true); // Impide que el jugador se salga del mapa
+        // Ajusta el tamaño de la caja de colisión (hitbox). Un poco más pequeño que el tile para un movimiento más suave.
+        this.body.setSize(TILE_SIZE * 0.8, TILE_SIZE * 0.8);
+        // Centra la hitbox dentro del sprite. Ajusta estos valores si tu sprite no está centrado.
+        this.body.setOffset(TILE_SIZE * 0.1, TILE_SIZE * 0.1);
 
         // Propiedades del jugador
-        this.speed = 120;        // Velocidad de movimiento en píxeles/segundo
-        this.isAlive = true;     // Estado de vida del jugador
-        this.bombCount = 1;      // Máximo de bombas que el jugador puede tener activas simultáneamente
+        this.speed = 100; // Velocidad de movimiento en píxeles/segundo
+        this.isAlive = true; // Estado de vida del jugador
+        this.bombsAvailable = 1; // Número máximo de bombas que puede colocar simultáneamente
+        this.bombsPlaced = 0; // Contador de bombas activas en el mapa
+
+        // Inicializa las animaciones del jugador
+        this.initAnimations();
+    }
+
+    initAnimations() {
+        // Crea las animaciones para el jugador.
+        // ¡IMPORTANTE! Asegúrate de que los números de frame (start: 0, end: 2, etc.)
+        // coinciden con la disposición de tu hoja de sprites (player.png).
+
+        this.anims.create({
+            key: 'idle',
+            frames: this.anims.generateFrameNumbers('player_sprite', { start: 0, end: 0 }), // Frame para estado de reposo
+            frameRate: 10,
+            repeat: -1 // Repetir indefinidamente
+        });
+
+        this.anims.create({
+            key: 'down',
+            frames: this.anims.generateFrameNumbers('player_sprite', { start: 0, end: 2 }), // Frames para caminar hacia abajo
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'up',
+            frames: this.anims.generateFrameNumbers('player_sprite', { start: 3, end: 5 }), // Frames para caminar hacia arriba
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'left',
+            frames: this.anims.generateFrameNumbers('player_sprite', { start: 6, end: 8 }), // Frames para caminar hacia la izquierda
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.anims.create({
+            key: 'right',
+            frames: this.anims.generateFrameNumbers('player_sprite', { start: 9, end: 11 }), // Frames para caminar hacia la derecha
+            frameRate: 10,
+            repeat: -1
+        });
+
+        this.play('idle'); // Inicia con la animación de reposo
     }
 
     /**
-     * El método update se llama automáticamente en cada fotograma del juego.
-     * Maneja el input del jugador y actualiza su posición.
+     * Método update del jugador, llamado en cada frame por GameScene.
+     * Maneja el movimiento basado en los cursores.
+     * @param {Phaser.Types.Input.Keyboard.CursorKeys} cursors - Objeto con el estado de las flechas del teclado.
      */
-    update(time, delta) {
-        if (!this.isAlive) return; // Si el jugador no está vivo, no procesa el input ni el movimiento
-
-        this.body.setVelocity(0); // Reinicia la velocidad en cada frame para evitar el "deslizamiento"
-        const cursors = this.scene.cursors; // Obtiene el objeto de cursores de la GameScene
-
-        let velocityX = 0;
-        let velocityY = 0;
-
-        // Lee el input del teclado
-        if (cursors.left.isDown) velocityX -= 1;
-        if (cursors.right.isDown) velocityX += 1;
-        if (cursors.up.isDown) velocityY -= 1;
-        if (cursors.down.isDown) velocityY += 1;
-
-        // Normaliza el vector de velocidad para que el movimiento diagonal no sea más rápido
-        if (velocityX !== 0 || velocityY !== 0) {
-            const length = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
-            velocityX = (velocityX / length) * this.speed;
-            velocityY = (velocityY / length) * this.speed;
+    update(cursors) {
+        if (!this.isAlive) {
+            this.setVelocity(0); // Si está muerto, no se mueve
+            return;
         }
 
-        this.body.setVelocity(velocityX, velocityY); // Aplica la velocidad al cuerpo físico
+        this.setVelocity(0); // Reinicia la velocidad en cada frame
 
-        // Controla el flip del sprite para que mire en la dirección del movimiento horizontal
-        if (velocityX < 0) this.setFlipX(true);
-        else if (velocityX > 0) this.setFlipX(false);
+        // Movimiento Horizontal
+        if (cursors.left.isDown) {
+            this.setVelocityX(-this.speed);
+            this.play('left', true); // Reproduce la animación 'left', ignorando si ya se está reproduciendo
+        } else if (cursors.right.isDown) {
+            this.setVelocityX(this.speed);
+            this.play('right', true); // Reproduce la animación 'right'
+        }
 
-        // Aquí se implementarían las animaciones (ej. this.anims.play('player_walk_left', true))
+        // Movimiento Vertical
+        if (cursors.up.isDown) {
+            this.setVelocityY(-this.speed);
+            this.play('up', true); // Reproduce la animación 'up'
+        } else if (cursors.down.isDown) {
+            this.setVelocityY(this.speed);
+            this.play('down', true); // Reproduce la animación 'down'
+        }
+
+        // Si no hay teclas de movimiento presionadas, vuelve a la animación 'idle'
+        if (this.body.velocity.x === 0 && this.body.velocity.y === 0) {
+            this.play('idle', true);
+        }
     }
 
     /**
      * Intenta colocar una bomba en la posición actual del jugador.
-     * Solo se permite si el jugador tiene bombas disponibles y el tile no es un muro.
+     * Se llama cuando se presiona la tecla ESPACIO.
      */
     tryPlaceBomb() {
-        // Verifica si el número de bombas activas es menor que la capacidad del jugador
-        if (this.scene.bombsGroup.countActive() < this.bombCount) {
-            const map = this.scene.map;
-            const scale = this.scene.SCALE_FACTOR;
-            const scaledTileSize = map.tileWidth * scale;
-
+        if (this.bombsPlaced < this.bombsAvailable) {
             // Calcula la posición del centro del tile donde se encuentra el jugador
-            const tileX = Math.floor(this.x / scaledTileSize);
-            const tileY = Math.floor(this.y / scaledTileSize);
+            const tileX = Math.floor(this.x / TILE_SIZE);
+            const tileY = Math.floor(this.y / TILE_SIZE);
+            const bombX = (tileX * TILE_SIZE) + (TILE_SIZE / 2);
+            const bombY = (tileY * TILE_SIZE) + (TILE_SIZE / 2);
 
-            const bombWorldX = (tileX * scaledTileSize) + (scaledTileSize / 2);
-            const bombWorldY = (tileY * scaledTileSize) + (scaledTileSize / 2);
+            // Obtiene una bomba del grupo de bombas en GameScene y la activa
+            // Se pasa 'this' (la referencia al jugador) para que la bomba sepa quién la colocó
+            const bomb = this.scene.bombsGroup.get(bombX, bombY, this);
 
-            // Usa GameScene.getTileAtWorldXY para verificar si el tile es un muro
-            const tileAtPos = this.scene.getTileAtWorldXY(bombWorldX, bombWorldY);
-            if (tileAtPos && tileAtPos.collides) {
-                return; // No se puede colocar una bomba dentro de un muro
-            }
-
-            // Obtiene una bomba del pool de bombas de la GameScene y la activa
-            const bomb = this.scene.bombsGroup.get(bombWorldX, bombWorldY);
             if (bomb) {
-                bomb.place(this.scene.SCALE_FACTOR); // Inicializa la bomba con la escala de la escena
+                this.bombsPlaced++; // Incrementa el contador de bombas colocadas
+                // Opcional: si la bomba necesita inicialización adicional, puedes llamarla aquí:
+                // bomb.init(this); 
             }
         }
     }
 
     /**
-     * Lógica cuando el jugador muere.
+     * Lógica para cuando el jugador muere.
+     * Se llama cuando el jugador colisiona con un enemigo o una explosión.
      */
     die() {
-        if (!this.isAlive) return; // Evita morir varias veces
+        if (!this.isAlive) return; // Evita llamar a die() varias veces si ya está muerto
 
-        console.log('Jugador ha muerto');
         this.isAlive = false;
-        this.body.enable = false; // Desactiva las físicas para que el jugador no interactúe más
-        this.setTint(0xff0000);   // Cambia el color del sprite a rojo como feedback visual
+        this.setVelocity(0); // Detiene el movimiento
+        this.setTint(0xff0000); // Cambia el color del sprite a rojo como feedback visual
+        this.anims.stop(); // Detiene cualquier animación
+        console.log('¡Jugador muerto!');
 
-        // Espera un tiempo (ej. 2 segundos) antes de reaparecer
-        this.scene.time.delayedCall(2000, () => {
-            this.respawn();
-        });
+        // Desactiva el cuerpo físico para que no siga colisionando mientras está "muerto"
+        this.body.enable = false;
+
+        // Opcional: Reinicia la escena después de un corto retraso
+        this.scene.time.delayedCall(1500, () => {
+            this.scene.scene.restart(); // Reinicia la escena del juego (puedes cambiar esto por lógica de vidas, etc.)
+        }, [], this);
     }
 
     /**
-     * Lógica para reaparecer al jugador.
+     * Método para liberar una bomba (se llama cuando una bomba explota).
+     * Decrementa el contador de bombas colocadas.
      */
-    respawn() {
-        console.log('Jugador reaparece');
-        this.isAlive = true;
-        this.body.enable = true; // Reactiva las físicas
-        this.clearTint();        // Restaura el color original del sprite
-
-        // Mueve al jugador a una posición de spawn predefinida
-        const spawnX = (this.scene.TILE_SIZE * 1.5) * this.scene.SCALE_FACTOR;
-        const spawnY = (this.scene.TILE_SIZE * 1.5) * this.scene.SCALE_FACTOR;
-        this.setPosition(spawnX, spawnY);
+    releaseBomb() {
+        this.bombsPlaced--;
+        if (this.bombsPlaced < 0) this.bombsPlaced = 0; // Asegura que no sea negativo
     }
 }

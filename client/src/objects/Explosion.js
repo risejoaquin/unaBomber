@@ -2,34 +2,28 @@ import Phaser from 'phaser';
 
 /**
  * Explosion: Objeto efímero que representa un segmento de la explosión.
- * Tiene una duración corta y es responsable de interactuar con otros objetos para causar daño.
+ * Sin factor de escalado.
  */
 export default class Explosion extends Phaser.GameObjects.Sprite {
     constructor(scene, x, y) {
-        // 'explosion_sprite' es la KEY del spritesheet de la explosión
         super(scene, x, y, 'explosion_sprite');
-        // Las explosiones se gestionan a través de un grupo, no se añaden directamente aquí
+        // Las explosiones se gestionan a través de un grupo
     }
 
     /**
-     * Inicializa y activa la explosión.
-     * @param {number} scaleFactor El factor de escalado de la escena.
+     * Inicializa y activa la explosión. No requiere scaleFactor.
      */
-    fire(scaleFactor) {
-        this.setActive(true);    // Activa la explosión en el grupo
-        this.setVisible(true);   // La hace visible
-        this.setScale(scaleFactor); // Aplica la escala global
-        this.body.enable = true; // Activa su cuerpo de físicas
-        this.body.setImmovable(true); // Impide que la explosión se mueva
+    fire() {
+        this.setActive(true);
+        this.setVisible(true);
+        // ¡ATENCIÓN! No hay setScale() aquí, el sprite de la explosión ya es 16x16.
+        this.body.enable = true;
+        this.body.setImmovable(true);
 
-        // La explosión dura solo 500 milisegundos
         this.scene.time.delayedCall(500, () => {
-            // Desactiva la explosión para que pueda ser reciclada en el pool
             this.setActive(false);
             this.setVisible(false);
             this.body.enable = false;
         });
-
-        // Aquí se iniciaría la animación de la explosión (ej. this.anims.play('explosion_anim'))
     }
 }
