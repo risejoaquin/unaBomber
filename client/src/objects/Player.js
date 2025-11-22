@@ -1,46 +1,98 @@
 import Phaser from 'phaser';
 
 export default class Player extends Phaser.GameObjects.Sprite {
-    constructor(scene, x, y, textureKey = 'player_sprite') { // textureKey ahora es 'player_sprite' por defecto
-        super(scene, x, y, textureKey); // Usar textureKey pasado
+    constructor(scene, x, y) {
+        super(scene, x, y, 'player_sprite');
 
         scene.add.existing(this);
         scene.physics.add.existing(this);
 
-        if (this.body) {
-            this.body.setCollideWorldBounds(true);
-            this.body.setSize(12, 12); // Área de colisión reducida
-            this.body.setOffset(2, 4); // Centrar el cuerpo
-        }
+        this.body.setCollideWorldBounds(true);
+        this.body.setSize(10, 10);
+        this.body.setOffset(3, 6); // Ajuste de hitbox para el sprite de 16x16
 
-        this.speed = 150;
-        this.setDepth(10); // Para asegurar que el jugador siempre se vea por encima del mapa
+        this.speed = 120;
+        this.isAlive = true;
+        this.bombCount = 1; // Máximo de bombas simultáneas
     }
 
     update(time, delta) {
-        // Asegúrate de que el cuerpo físico y los cursores existan
-        if (!this.body || !this.scene.cursors) return;
+        if (!this.isAlive) return;
 
-        this.body.setVelocity(0); // Reiniciar velocidad en cada frame
+        this.body.setVelocity(0);
+        const cursors = this.scene.cursors;
 
-        // Movimiento (usa los cursores de la escena)
-        if (this.scene.cursors.left.isDown) {
-            this.body.setVelocityX(-this.speed);
-            this.setFlipX(true); // Voltear sprite si va a la izquierda
-        } else if (this.scene.cursors.right.isDown) {
-            this.body.setVelocityX(this.speed);
-            this.setFlipX(false); // No voltear si va a la derecha
+        let velocityX = 0;
+        let velocityY = 0;
+
+        // Lectura de input
+        if (cursors.left.isDown) velocityX -= 1;
+        if (cursors.right.isDown) velocityX += 1;
+        if (cursors.up.isDown) velocityY -= 1;
+        if (cursors.down.isDown) velocityY += 1;
+
+        // Normalización y aplicación de velocidad para evitar movimiento diagonal rápido
+        if (velocityX !== 0 || velocityY !== 0) {
+            const length = Math.sqrt(velocityX * velocityX + velocityY * velocityY);
+            velocityX = (velocityX / length) * this.speed;
+            velocityY = (velocityY / length) * this.speed;
         }
 
-        if (this.scene.cursors.up.isDown) {
-            this.body.setVelocityY(-this.speed);
-        } else if (this.scene.cursors.down.isDown) {
-            this.body.setVelocityY(this.speed);
-        }
+        this.body.setVelocity(velocityX, velocityY);
 
-        // Normalización para velocidad constante en diagonal (evita ir más rápido)
-        if (this.body.velocity.x !== 0 || this.body.velocity.y !== 0) {
-            this.body.velocity.normalize().scale(this.speed);
+        // Control del flip visual
+        if (velocityX < 0) this.setFlipX(true);
+        else if (velocityX > 0) this.setFlipX(false);
+    }
+
+    tryPlaceBomb() {
+        // Verificar si puede colocar más bombas
+        if (this.scene.bombsGroup.countActive() < this.bombCount) {
+            const map = this.scene.map;
+            const scale = this.scene.SCALE_FACTOR;
+            const scaledTileSize = map.tileWidth * scale;
+
+            // Centrar la bomba en el tile actual del jugador
+            const tileX = Math.floor(this.x / scaledTileSize);
+            const tileY = Math.floor(this.y / scaledTileSize);
+
+            const bombWorldX = (tileX * scaledTileSize) + (scaledTileSize / 2);
+            const bombWorldY = (tileY * scaledTileSize) + (scaledTileSize / 2);
+
+            // Evitar colocar bomba si ya hay un muro en el centro del tile
+            const tileAtPos = this.scene.getTileAtWorldXY(bombWorldX, bombWorldY);
+            if (tileAtPos && tileAtPos.collides) {
+                return;
+            }
+
+            // Obtener bomba del pool y activarla
+            const bomb = this.scene.bombsGroup.get(bombWorldX, bombWorldY);
+            if (bomb) {
+                bomb.place(this.scene.SCALE_FACTOR);
+            }
         }
+    }
+
+    die() {
+        if (!this.isAlive) return;
+        console.log('Jugador ha muerto');
+        this.isAlive = false;
+        this.body.enable = false;
+        this.setTint(0xff0000);
+
+        this.scene.time.delayedCall(2000, () => {
+            this.respawn();
+        });
+    }
+
+    respawn() {
+        console.log('Jugador reaparece');
+        this.isAlive = true;
+        this.body.enable = true;
+        this.clearTint();
+        // Volver al spawn inicial (1,1)
+        const spawnX = (16 * 1.5) * this.scene.SCALE_FACTOR;
+        const spawnY = (16 * 1.5) * this.scene.SCALE_FACTOR;
+        this.setPosition(spawnX, spawnY);
     }
 }

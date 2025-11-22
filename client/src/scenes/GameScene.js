@@ -1,102 +1,139 @@
 import Phaser from 'phaser';
 import Player from '../objects/Player.js';
-import Seal from '../objects/Seal.js';
 import Enemy from '../objects/Enemy.js';
+import Bomb from '../objects/Bomb.js';
 import Explosion from '../objects/Explosion.js';
 
 export default class GameScene extends Phaser.Scene {
     constructor() {
         super('GameScene');
+        this.map = null;
+        this.wallsLayer = null;
+        this.destructibleLayer = null;
         this.player = null;
         this.cursors = null;
-        this.wallsLayer = null;
-        this.staticObjectsLayer = null;
-        this.kitkatLayer = null;
+
+        // Grupos de físicas para gestión y colisiones
+        this.enemiesGroup = null;
+        this.bombsGroup = null;
+        this.explosionsGroup = null;
+
+        this.SCALE_FACTOR = 3;
+        this.TILE_SIZE = 16;
     }
 
     create() {
-        console.log("--- GameScene: INICIO de creación de escena ---");
-        const SCALE_FACTOR = 3;
+        console.log('--- GameScene: Inicializando mundo de juego ---');
 
-        // --- 1. CONFIGURACIÓN DEL MAPA ---
-        // Intentamos crear el mapa. Si BootScene dijo que cargó, debería funcionar.
-        const map = this.make.tilemap({ key: 'level1_map' });
+        this.createMap();
 
-        // ¡QUITADO el 'return' temprano! Si map es null aquí, GameScene fallará de otras maneras.
-        // Pero el 'setScale' no debería ser el primer punto de fallo si la carga fue exitosa.
-        if (!map) {
-            console.error("ERROR CRÍTICO (GameScene): this.make.tilemap() devolvió NULL a pesar de la carga exitosa en BootScene. Revisa el formato de level1.json.");
-            // Podrías lanzar un error real o volver a la escena de carga aquí.
-            // Por ahora, continuaremos para ver dónde más falla si 'map' es realmente null.
-        }
+        // Inicialización de Grupos (pools de objetos)
+        this.enemiesGroup = this.physics.add.group({ classType: Enemy, runChildUpdate: true });
+        this.bombsGroup = this.physics.add.group({ classType: Bomb, runChildUpdate: true, maxSize: 10 });
+        this.explosionsGroup = this.physics.add.group({ classType: Explosion, runChildUpdate: true, maxSize: 50 });
 
-        // Tiled Name: '0x72_DungeonTilesetII_v1.7' (del JSON de Tiled)
-        // Image Key: 'dungeon_tileset' (lo que cargamos en BootScene)
-        const tileset = map.addTilesetImage('0x72_DungeonTilesetII_v1.7', 'dungeon_tileset');
+        // CREACIÓN DE ENTIDADES
+        this.createPlayer(); // <--- LA CREACIÓN DEL JUGADOR AHORA ES CORRECTA
+        this.spawnEnemies();
 
-        if (!tileset) {
-            console.error("ERROR CRÍTICO (GameScene): La conexión Tileset-Imagen falló. Revisa que el nombre del tileset en Tiled sea '0x72_DungeonTilesetII_v1.7' Y que el key 'dungeon_tileset' esté bien.");
-            return; // Si el tileset no se puede añadir, no podemos crear capas.
-        }
+        this.setupCollisions();
+        this.setupCameraAndControls();
+    }
 
-        // Aquí es donde se producía el error. Asegurémonos de que 'map' no sea null aquí.
-        // Si 'map' es null AQUI, entonces el error original de 'make.tilemap' es el problema.
-        if (map) { // Aseguramos que 'map' exista antes de llamarle a .setScale()
-            map.setScale(SCALE_FACTOR); // Escalamos el mapa completo
-        } else {
-            console.error("ERROR CRÍTICO (GameScene): 'map' sigue siendo null después de this.make.tilemap(). No se puede escalar.");
-            return; // No podemos continuar si no tenemos un mapa válido
-        }
+    createMap() {
+        this.map = this.make.tilemap({ key: 'map_level1' });
+        // Nombre del tileset en Tiled: '0x72_DungeonTilesetII_v1.7'
+        const tileset = this.map.addTilesetImage('0x72_DungeonTilesetII_v1.7', 'tileset_main');
 
-        // --- 2. CREACIÓN DE CAPAS DEL MAPA ---
-        // Si 'map' es null en este punto, estas líneas fallarían.
-        this.groundLayer = map.createLayer('ground', tileset, 0, 0);
-        this.wallsLayer = map.createLayer('walls', tileset, 0, 0);
-        this.staticObjectsLayer = map.createLayer('static_objects', tileset, 0, 0);
-        this.kitkatLayer = map.createLayer('kitkat', tileset, 0, 0); // Tu capa adicional
+        this.map.setScale(this.SCALE_FACTOR);
 
-        // Configurar colisiones para las capas que deben ser sólidas
+        // Nombres de capas EXACTOS de Tiled
+        this.groundLayer = this.map.createLayer('ground', tileset, 0, 0);
+        this.wallsLayer = this.map.createLayer('walls', tileset, 0, 0); // Muros INDESTRUCTIBLES
+        this.destructibleLayer = this.map.createLayer('kitkat', tileset, 0, 0); // Muros DESTRUCTIBLES
+
+        // Activación de colisiones por la propiedad 'collides: true' que configuraste en Tiled
         this.wallsLayer.setCollisionByProperty({ collides: true });
-        this.staticObjectsLayer.setCollisionByProperty({ collides: true });
-        this.kitkatLayer.setCollisionByProperty({ collides: true });
+        this.destructibleLayer.setCollisionByProperty({ collides: true });
+    }
 
+    createPlayer() {
+        // Spawn en una posición segura (1,1 en coordenadas de tiles)
+        const spawnX = (this.TILE_SIZE * 1.5) * this.SCALE_FACTOR;
+        const spawnY = (this.TILE_SIZE * 1.5) * this.SCALE_FACTOR;
 
-        // --- 3. CREACIÓN DEL JUGADOR ---
-        const TILE_SIZE = 16;
-        const startX = 5 * TILE_SIZE * SCALE_FACTOR;
-        const startY = 5 * TILE_SIZE * SCALE_FACTOR;
+        // Instancia del objeto Player
+        this.player = new Player(this, spawnX, spawnY);
+        this.player.setScale(this.SCALE_FACTOR);
+    }
 
-        this.player = new Player(this, startX, startY, 'player_sprite');
-        this.player.setScale(SCALE_FACTOR);
-
-        if (!this.player || !this.player.body) {
-            console.error("ERROR CRÍTICO (GameScene): Player no se pudo crear o no tiene cuerpo físico.");
-            return;
+    spawnEnemies() {
+        // Ejemplo de spawn de un enemigo
+        const enemyX = (this.TILE_SIZE * 10.5) * this.SCALE_FACTOR;
+        const enemyY = (this.TILE_SIZE * 5.5) * this.SCALE_FACTOR;
+        const enemy = this.enemiesGroup.get(enemyX, enemyY);
+        if (enemy) {
+            enemy.setScale(this.SCALE_FACTOR);
+            enemy.init();
         }
+    }
 
-
-        // --- 4. COLISIONES FÍSICAS ---
+    setupCollisions() {
+        // Colisiones de Movimiento (Physics.Collider)
         this.physics.add.collider(this.player, this.wallsLayer);
-        this.physics.add.collider(this.player, this.staticObjectsLayer);
-        this.physics.add.collider(this.player, this.kitkatLayer);
+        this.physics.add.collider(this.player, this.destructibleLayer);
+        this.physics.add.collider(this.enemiesGroup, this.wallsLayer);
+        this.physics.add.collider(this.enemiesGroup, this.destructibleLayer);
+        this.physics.add.collider(this.player, this.bombsGroup);
+        this.physics.add.collider(this.enemiesGroup, this.bombsGroup);
 
+        // Interacciones Letales (Physics.Overlap)
 
-        // --- 5. CÁMARA Y CONTROLES ---
-        const worldWidth = map.widthInPixels * SCALE_FACTOR;
-        const worldHeight = map.heightInPixels * SCALE_FACTOR;
+        // 1. Jugador muere por Enemigo o Explosión
+        this.physics.add.overlap(this.player, this.enemiesGroup, (player, enemy) => {
+            player.die();
+        });
+        this.physics.add.overlap(this.explosionsGroup, this.player, (explosion, player) => {
+            player.die();
+        });
+
+        // 2. Enemigo muere por Explosión
+        this.physics.add.overlap(this.explosionsGroup, this.enemiesGroup, (explosion, enemy) => {
+            enemy.die();
+        });
+
+        // 3. Destrucción de bloques por Explosión
+        this.physics.add.overlap(this.explosionsGroup, this.destructibleLayer, (explosion, tile) => {
+            // Eliminar el tile destructible del mapa
+            this.destructibleLayer.removeTileAt(tile.x, tile.y);
+        });
+    }
+
+    setupCameraAndControls() {
+        const worldWidth = this.map.widthInPixels * this.SCALE_FACTOR;
+        const worldHeight = this.map.heightInPixels * this.SCALE_FACTOR;
 
         this.physics.world.setBounds(0, 0, worldWidth, worldHeight);
         this.cameras.main.setBounds(0, 0, worldWidth, worldHeight);
         this.cameras.main.startFollow(this.player);
-        this.cameras.main.setZoom(1);
-        this.cursors = this.input.keyboard.createCursorKeys();
 
-        console.log("--- GameScene: FIN de creación de escena. Buscando inputs. ---");
+        this.cursors = this.input.keyboard.createCursorKeys();
+        // Evento para colocar bomba al presionar ESPACIO
+        this.input.keyboard.on('keydown-SPACE', () => {
+            if (this.player && this.player.isAlive) {
+                this.player.tryPlaceBomb();
+            }
+        });
     }
 
-    update(time, delta) {
-        if (this.player) {
-            this.player.update(time, delta);
-        }
+    /**
+     * Devuelve el tile en una coordenada mundial (world X/Y).
+     * Es crucial para que la bomba verifique si está sobre un muro antes de explotar.
+     */
+    getTileAtWorldXY(worldX, worldY) {
+        const wallTile = this.wallsLayer.getTileAtWorldXY(worldX, worldY, true);
+        const destructibleTile = this.destructibleLayer.getTileAtWorldXY(worldX, worldY, true);
+        // Si no es un muro ni un bloque destructible, devuelve null.
+        return wallTile || destructibleTile;
     }
 }

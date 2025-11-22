@@ -1,40 +1,56 @@
 import Phaser from 'phaser';
 
 export default class Enemy extends Phaser.GameObjects.Sprite {
-    constructor(scene, x, y, texture = 'enemy', frame = 0) {
-        super(scene, x, y, texture, frame);
+    constructor(scene, x, y) {
+        super(scene, x, y, 'enemy_sprite');
+        this.speed = 80;
+        this.direction = Phaser.Math.Between(0, 3);
+        this.isAlive = false;
+    }
 
-        scene.add.existing(this); // Añade el enemigo a la escena
-        scene.physics.world.enable(this); // Habilita la física para el enemigo
+    init() {
+        this.isAlive = true;
+        this.setActive(true);
+        this.setVisible(true);
+        this.body.enable = true;
+        this.body.setCollideWorldBounds(true);
+        this.body.setBounce(1); // Hace que rebote contra muros
+        this.setTint(0xffffff); // Color normal
 
-        this.body.setCollideWorldBounds(true); // Asegura que el enemigo no salga del mundo
-        this.body.setImmovable(false); // Puede moverse
-
-        // Ejemplo básico de movimiento del enemigo
-        this.speed = 50; // Velocidad del enemigo
-        this.setFlipX(true); // Orientación inicial del sprite
-        this.moveDirection = 1; // 1 para derecha, -1 para izquierda
-        this.lastUpdateTime = 0;
-        this.changeDirectionInterval = 2000; // Cambiar de dirección cada 2 segundos
-
-        this.anims.create({
-            key: 'enemy_walk',
-            frames: this.anims.generateFrameNumbers('enemy', { start: 0, end: 3 }),
-            frameRate: 10,
-            repeat: -1
-        });
-
-        this.play('enemy_walk');
+        this.changeDirection();
     }
 
     update(time, delta) {
-        // Movimiento simple de un lado a otro
-        if (time - this.lastUpdateTime > this.changeDirectionInterval) {
-            this.moveDirection *= -1; // Invierte la dirección
-            this.setFlipX(this.moveDirection === 1); // Voltea el sprite
-            this.lastUpdateTime = time;
-        }
+        if (!this.active || !this.isAlive) return;
 
-        this.body.setVelocityX(this.speed * this.moveDirection);
+        // Movimiento simple por dirección
+        if (this.direction === 0) this.body.setVelocity(0, -this.speed);
+        else if (this.direction === 1) this.body.setVelocity(0, this.speed);
+        else if (this.direction === 2) this.body.setVelocity(-this.speed, 0);
+        else if (this.direction === 3) this.body.setVelocity(this.speed, 0);
+
+        // Si se detiene por colisión, cambia de dirección
+        if (this.body.velocity.x === 0 && this.body.velocity.y === 0) {
+            this.changeDirection();
+        }
+    }
+
+    changeDirection() {
+        // Elige una nueva dirección aleatoria
+        this.direction = Phaser.Math.Between(0, 3);
+    }
+
+    die() {
+        if (!this.isAlive) return;
+        console.log('Enemigo destruido');
+        this.isAlive = false;
+        this.body.enable = false;
+        this.setTint(0x555555); // Feedback de muerte
+
+        // Desaparecer después de 1 segundo
+        this.scene.time.delayedCall(1000, () => {
+            this.setActive(false);
+            this.setVisible(false);
+        });
     }
 }
