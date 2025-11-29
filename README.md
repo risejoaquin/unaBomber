@@ -1,73 +1,18 @@
-# React + TypeScript + Vite
+💣 unaBOMBER¡Bienvenido a unaBOMBER! Este proyecto es una reimaginación web de un clásico juego de laberintos y bombas (estilo Bomberman), desarrollado con React para la interfaz de usuario, Phaser para la lógica del juego, y Firebase para gestionar la autenticación y la progresión.El juego se presenta con una estética gótica oscura, ofreciendo una experiencia inmersiva de juego y RPG.🚀 Stack TecnológicoEste proyecto Full-Stack utiliza una combinación de tecnologías modernas y robustas:ÁreaTecnologíaNotasFrontend/UIReact, TypeScript, ViteInterfaz de usuario y componentes principales.Motor de JuegoPhaser 3Lógica de la escena de juego, física y entidades.Base de DatosFirebase FirestoreAlmacenamiento de perfiles de usuario y datos de XP.AutenticaciónFirebase AuthMúltiples métodos de inicio de sesión, incluyendo anónimo, Google, Email/Password y Teléfono.AlmacenamientoFirebase StorageGestión de avatares de usuario.BackendExpress.jsServidor backend simple para lógica de API (actualmente solo un endpoint de estado).EstiloCSS Modules & Global CSSTema Gótico/Diablo-like y fuentes retro (Press Start 2P, Rajdhani).✨ Características del Juego y Plataforma🕹️ Gameplay y ProgresiónModos de Juego: Incluye un Modo Historia con una narrativa de 7 niveles temáticos ("El Decreto del Rey", "El Laberinto de la Locura", etc.) y un Modo Hardcore con niveles generados aleatoriamente e infinitos.XP y Nivelación: El sistema de progresión recompensa las acciones del jugador:Destruir Bloques Débiles: 5 XP.Eliminar Enemigos: 30 XP.Completar Nivel: 250 XP.Bono de Juego Perfecto (Cero Muertes): 150 XP.Enemigos: Los enemigos siguen al jugador dentro de un rango de proximidad (maxLeashDistance) y cambian de dirección si están bloqueados.Power-ups: Los jugadores pueden recolectar ítems para aumentar el rango de la explosión (range), la velocidad de movimiento (speed) o la capacidad máxima de bombas (bomb).👤 Autenticación, Perfil y SocialAutenticación Múltiple: Soporte para inicio de sesión con Email/Contraseña, Google, Teléfono (con reCAPTCHA invisible) y Anónimo (Invitado).Sistema de Monedas y Recompensas: Los usuarios pueden reclamar una Recompensa Horaria de 100 💰 monedas.Perfil Completo: Muestra el Nivel actual, XP (con barra de progreso visual de estilo gótico) y Créditos.Avatar: Los usuarios pueden subir un avatar personalizado que se almacena en Firebase Storage.Leaderboard: Muestra el Top 10 de jugadores clasificados por totalXP.🛠️ Instalación y EjecuciónPrerrequisitosNode.js: Versión recomendada ^20.19.0 o superior.Una cuenta de Firebase con Authentication, Firestore y Storage habilitados.1. Clonar e Instalar DependenciasBash# 1. Clona el repositorio
+git clone <url-del-repositorio>
+cd unabomber
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# 2. Instala las dependencias
+npm install
+2. Configuración de Variables de EntornoCrea un archivo llamado .env en la raíz del proyecto. Este archivo no debe ser subido a Git (está excluido en .gitignore).Añade tus credenciales de Firebase:Fragmento de código# Variables de entorno para Firebase (obtenidas de la configuración de tu proyecto)
+VITE_FIREBASE_API_KEY="TU_API_KEY_AQUI"
+VITE_FIREBASE_AUTH_DOMAIN="TU_AUTH_DOMAIN"
+VITE_FIREBASE_PROJECT_ID="TU_PROJECT_ID"
+VITE_FIREBASE_STORAGE_BUCKET="TU_STORAGE_BUCKET"
+VITE_FIREBASE_MESSAGING_SENDER_ID="TU_MESSAGING_SENDER_ID"
+VITE_FIREBASE_APP_ID="TU_APP_ID"
 
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+# Puerto para el servidor Express
+PORT=3000 
+3. Ejecución del ProyectoUsa el script dev para iniciar el frontend (Vite) y el servidor backend (Express/Nodemon) simultáneamente:Bashnpm run dev
+Esto ejecutará:Frontend (Phaser/React): En http://localhost:8080.Backend (Express): En http://localhost:3000.Scripts AdicionalesComandoDescripciónnpm run serverEjecuta solo el backend (Express) con nodemon para desarrollo.npm run client-viteEjecuta solo el frontend (React/Phaser) con vite.npm run buildCompila la aplicación para producción.🗺️ Estructura del Mapa (Tiled)Los mapas del juego se crean con Tiled Map Editor y se cargan como archivos JSON en Phaser.Dimensiones: 25x19 casillas (tilewidth: 32, tileheight: 32).Capas: Típicamente consisten en una capa de Floor (Suelo) y una capa de Wall (Muro) para colisiones.Tileset: Utiliza la imagen tileset.png (Cainos) para dibujar los niveles.
