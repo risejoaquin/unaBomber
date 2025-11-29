@@ -1,18 +1,59 @@
-💣 unaBOMBER¡Bienvenido a unaBOMBER! Este proyecto es una reimaginación web de un clásico juego de laberintos y bombas (estilo Bomberman), desarrollado con React para la interfaz de usuario, Phaser para la lógica del juego, y Firebase para gestionar la autenticación y la progresión.El juego se presenta con una estética gótica oscura, ofreciendo una experiencia inmersiva de juego y RPG.🚀 Stack TecnológicoEste proyecto Full-Stack utiliza una combinación de tecnologías modernas y robustas:ÁreaTecnologíaNotasFrontend/UIReact, TypeScript, ViteInterfaz de usuario y componentes principales.Motor de JuegoPhaser 3Lógica de la escena de juego, física y entidades.Base de DatosFirebase FirestoreAlmacenamiento de perfiles de usuario y datos de XP.AutenticaciónFirebase AuthMúltiples métodos de inicio de sesión, incluyendo anónimo, Google, Email/Password y Teléfono.AlmacenamientoFirebase StorageGestión de avatares de usuario.BackendExpress.jsServidor backend simple para lógica de API (actualmente solo un endpoint de estado).EstiloCSS Modules & Global CSSTema Gótico/Diablo-like y fuentes retro (Press Start 2P, Rajdhani).✨ Características del Juego y Plataforma🕹️ Gameplay y ProgresiónModos de Juego: Incluye un Modo Historia con una narrativa de 7 niveles temáticos ("El Decreto del Rey", "El Laberinto de la Locura", etc.) y un Modo Hardcore con niveles generados aleatoriamente e infinitos.XP y Nivelación: El sistema de progresión recompensa las acciones del jugador:Destruir Bloques Débiles: 5 XP.Eliminar Enemigos: 30 XP.Completar Nivel: 250 XP.Bono de Juego Perfecto (Cero Muertes): 150 XP.Enemigos: Los enemigos siguen al jugador dentro de un rango de proximidad (maxLeashDistance) y cambian de dirección si están bloqueados.Power-ups: Los jugadores pueden recolectar ítems para aumentar el rango de la explosión (range), la velocidad de movimiento (speed) o la capacidad máxima de bombas (bomb).👤 Autenticación, Perfil y SocialAutenticación Múltiple: Soporte para inicio de sesión con Email/Contraseña, Google, Teléfono (con reCAPTCHA invisible) y Anónimo (Invitado).Sistema de Monedas y Recompensas: Los usuarios pueden reclamar una Recompensa Horaria de 100 💰 monedas.Perfil Completo: Muestra el Nivel actual, XP (con barra de progreso visual de estilo gótico) y Créditos.Avatar: Los usuarios pueden subir un avatar personalizado que se almacena en Firebase Storage.Leaderboard: Muestra el Top 10 de jugadores clasificados por totalXP.🛠️ Instalación y EjecuciónPrerrequisitosNode.js: Versión recomendada ^20.19.0 o superior.Una cuenta de Firebase con Authentication, Firestore y Storage habilitados.1. Clonar e Instalar DependenciasBash# 1. Clona el repositorio
+💣 unaBOMBER
+Un juego de laberintos y bombas con temática de fantasía gótica, construido con React y Phaser, utilizando Firebase para la gestión de usuarios y la progresión.
+
+⚙️ Tecnologías Clave
+Frontend: React, TypeScript, Vite.
+
+Motor de Juego: Phaser 3.
+
+Autenticación: Firebase Auth (Google, Email/Pwd, Anónimo, Teléfono).
+
+Base de Datos: Firebase Firestore (Perfiles y Leaderboard).
+
+Servidor API: Express.js.
+
+✨ Características Principales
+🎮 Jugabilidad y Progresión
+Modos de Juego: Historia (7 niveles con narrativa) y Hardcore (niveles infinitos).
+
+Sistema de XP y Nivelación: Gana experiencia por destruir bloques, eliminar enemigos, conseguir Chain Hits y completar niveles.
+
+Power-ups: Recolectables para aumentar la velocidad, el rango de la bomba y el límite de bombas.
+
+Enemigos: Inteligencia artificial simple con un radio de proximidad para seguir al jugador.
+
+👤 Plataforma y Social
+Recompensa Horaria: Reclama 100 💰 monedas cada hora.
+
+Personalización: Soporte para subir avatares personalizados a Firebase Storage.
+
+Leaderboard Global: Muestra el Top 10 de jugadores por XP total.
+
+🛠️ Configuración e Instalación
+Requisitos Previos
+Node.js (LTS recomendado).
+
+Un proyecto de Firebase configurado con Firestore, Auth y Storage.
+
+Pasos de Configuración
+Clona el repositorio e instala dependencias:
+
 git clone <url-del-repositorio>
 cd unabomber
-
-# 2. Instala las dependencias
 npm install
-2. Configuración de Variables de EntornoCrea un archivo llamado .env en la raíz del proyecto. Este archivo no debe ser subido a Git (está excluido en .gitignore).Añade tus credenciales de Firebase:Fragmento de código# Variables de entorno para Firebase (obtenidas de la configuración de tu proyecto)
-VITE_FIREBASE_API_KEY="TU_API_KEY_AQUI"
+
+Configura el archivo .env en la raíz del proyecto. Obtén tus claves de configuración de Firebase y añádelas:
+# .env
+VITE_FIREBASE_API_KEY="TU_API_KEY"
 VITE_FIREBASE_AUTH_DOMAIN="TU_AUTH_DOMAIN"
 VITE_FIREBASE_PROJECT_ID="TU_PROJECT_ID"
 VITE_FIREBASE_STORAGE_BUCKET="TU_STORAGE_BUCKET"
 VITE_FIREBASE_MESSAGING_SENDER_ID="TU_MESSAGING_SENDER_ID"
 VITE_FIREBASE_APP_ID="TU_APP_ID"
 
-# Puerto para el servidor Express
-PORT=3000 
-3. Ejecución del ProyectoUsa el script dev para iniciar el frontend (Vite) y el servidor backend (Express/Nodemon) simultáneamente:Bashnpm run dev
-Esto ejecutará:Frontend (Phaser/React): En http://localhost:8080.Backend (Express): En http://localhost:3000.Scripts AdicionalesComandoDescripciónnpm run serverEjecuta solo el backend (Express) con nodemon para desarrollo.npm run client-viteEjecuta solo el frontend (React/Phaser) con vite.npm run buildCompila la aplicación para producción.🗺️ Estructura del Mapa (Tiled)Los mapas del juego se crean con Tiled Map Editor y se cargan como archivos JSON en Phaser.Dimensiones: 25x19 casillas (tilewidth: 32, tileheight: 32).Capas: Típicamente consisten en una capa de Floor (Suelo) y una capa de Wall (Muro) para colisiones.Tileset: Utiliza la imagen tileset.png (Cainos) para dibujar los niveles.
+PORT=3000
+
+Ejecución del Proyecto
+Usa el script dev para levantar el frontend y el backend simultáneamente:
+
+npm run dev
