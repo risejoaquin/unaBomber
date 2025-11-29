@@ -3,14 +3,17 @@ import Phaser from 'phaser';
 export class Enemy {
   private sprite: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
   private sceneRef: Phaser.Scene;
+  private targetPlayer: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody; // 👈 NUEVO: Referencia al jugador
 
+  private maxLeashDistance: number = 300; // Distancia máxima antes de forzar el regreso
   private speed: number = 80;
   private currentDir: Phaser.Math.Vector2;
   private moveTimer: number = 0;
   private _isDead: boolean = false;
 
-  constructor(scene: Phaser.Scene, x: number, y: number) {
+  constructor(scene: Phaser.Scene, x: number, y: number, player: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody) { // 👈 NUEVO: Recibe el jugador
     this.sceneRef = scene;
+    this.targetPlayer = player; // Asigna la referencia del jugador
 
     // Crear Sprite (32px nativo)
     this.sprite = scene.physics.add.sprite(x, y, 'enemy');
@@ -19,7 +22,11 @@ export class Enemy {
     this.sprite.body.setSize(24, 24);
     this.sprite.body.setOffset(4, 4);
 
+    // setBounce(1) es la última línea de defensa contra salirse del mapa
     this.sprite.setCollideWorldBounds(true);
+    this.sprite.setBounce(1);
+    this.sprite.body.onWorldBounds = true;
+
     this.sprite.setData('owner', this);
 
     this.currentDir = this.getRandomDirection();
@@ -28,28 +35,45 @@ export class Enemy {
 
   public getSprite() { return this.sprite; }
   public isDead() { return this._isDead; }
+  public changeDirection() {
+    let newDir = this.getRandomDirection();
+    while (newDir.x === this.currentDir.x && newDir.y === this.currentDir.y) {
+      newDir = this.getRandomDirection();
+    }
+    this.currentDir = newDir;
+  }
 
   public update(delta: number) {
-    if (this._isDead || !this.sprite.body) return;
+    if (this._isDead || !this.sprite.body || !this.targetPlayer) return;
 
-    // Aplicar velocidad constante
-    this.sprite.setVelocity(
-      this.currentDir.x * this.speed,
-      this.currentDir.y * this.speed
-    );
+    // 1. ✅ LÓGICA DE IA DE PROXIMIDAD (LEASH)
+    const distance = Phaser.Math.Distance.Between(this.sprite.x, this.sprite.y, this.targetPlayer.x, this.targetPlayer.y);
+    let velocityX = 0;
+    let velocityY = 0;
+
+    if (distance > this.maxLeashDistance) {
+      // Forzar al enemigo a moverse hacia el jugador
+      this.sceneRef.physics.moveToObject(this.sprite, this.targetPlayer, this.speed);
+      velocityX = this.sprite.body.velocity.x;
+      velocityY = this.sprite.body.velocity.y;
+    } else {
+      // Movimiento normal (random walk)
+      if (this.currentDir.x !== 0) velocityX = this.currentDir.x * this.speed;
+      if (this.currentDir.y !== 0) velocityY = this.currentDir.y * this.speed;
+
+      this.sprite.setVelocity(velocityX, velocityY);
+    }
 
     this.playAnimationForDirection();
 
-    // LÓGICA DE IA MEJORADA
-    // 1. Cambiar dirección si choca contra algo (pared o bomba)
+    // 2. Lógica de IA: Cambiar dirección si choca o por temporizador
     if (this.sprite.body.blocked.down || this.sprite.body.blocked.up ||
       this.sprite.body.blocked.left || this.sprite.body.blocked.right) {
       this.changeDirection();
     }
 
-    // 2. Cambiar dirección aleatoriamente cada cierto tiempo
     this.moveTimer += delta;
-    if (this.moveTimer > 2000) {
+    if (this.moveTimer > 2000 && distance <= this.maxLeashDistance) {
       if (Math.random() > 0.5) this.changeDirection();
       this.moveTimer = 0;
     }
@@ -62,7 +86,6 @@ export class Enemy {
     this.sprite.setVelocity(0, 0);
     this.sprite.setTint(0xff0000);
     this.sprite.anims.stop();
-    // CORRECCIÓN: Desactivar cuerpo físico inmediatamente
     this.sprite.disableBody(true, false);
 
     this.sceneRef.tweens.add({
@@ -76,28 +99,16 @@ export class Enemy {
     });
   }
 
-  private changeDirection() {
-    // Intentar una dirección distinta a la actual para no rebotar 180 grados siempre
-    let newDir = this.getRandomDirection();
-    // Simple intento de no repetir dirección inmediatamente (opcional)
-    while (newDir.x === this.currentDir.x && newDir.y === this.currentDir.y) {
-      newDir = this.getRandomDirection();
-    }
-    this.currentDir = newDir;
-  }
-
   private playAnimationForDirection() {
-    if (!this.sprite.anims) return;
+    if (!this.sprite.anims || !this.sprite.body) return;
 
     const vel = this.sprite.body.velocity;
-    // Solo animar si se mueve
     if (vel.length() < 0.1) return;
 
     if (Math.abs(vel.x) > Math.abs(vel.y)) {
       if (vel.x > 0) {
         this.sprite.play('enemy_right', true).setFlipX(false);
       } else {
-        // CORRECCIÓN: Usar enemy_right y setFlipX(true) para ir a la izquierda (assets compartidos)
         this.sprite.play('enemy_right', true).setFlipX(true);
       }
     } else {

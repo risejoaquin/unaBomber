@@ -4,10 +4,23 @@ import { Item, ItemType } from '../entities/Item';
 import { Portal } from '../entities/Portal';
 import { GameAction, PlayerSessionData, ActionType, XP_VALUES } from '../../core/progression/XPSystemTypes';
 
-// NOTA: Los assets se cargarán desde /public/assets/ (debido a la corrección de ruta)
+const BRICK_TILE_ID = 449;
+let GAME_START_TIME = Date.now();
+const MAX_STORY_LEVEL = 7; // Define el número máximo de niveles de la historia.
 
-const BRICK_TILE_ID = 449; // ID del tileset para mostrar la caja de madera destructible.
-let GAME_START_TIME = Date.now(); // Rastreador de tiempo global
+// --- 👑 NARRATIVA DEL JUEGO (7 Niveles) 👑 ---
+const STORY_NARRATIVE = [
+  // Nivel 1 -> 2 (Índice 0)
+  { title: "El Decreto del Rey", text: "El reino ha sido silenciado. La Princesa Elara ha sido secuestrada por el Barón Oscuro. ¡Debes liberar el primer sector del calabozo!" },
+  // Nivel 2 -> 3 (Índice 1)
+  { title: "Primer Desafío Superado", text: "Has limpiado la guardia menor. El Barón se esconde en los pisos inferiores, custodiado por sus mejores orcos." },
+  { title: "Profundizando", text: "El aire se vuelve denso y frío. El Barón ha colocado trampas. ¡Ten cuidado!" },
+  { title: "El Laberinto de la Locura", text: "Te acercas. Sientes la presencia de Elara. Sus lamentos se pierden en este laberinto de piedra y metal." },
+  { title: "La Fortaleza Interior", text: "Solo dos pisos te separan de la Princesa. Sus defensores ahora son más rápidos y letales. El final está cerca." },
+  { title: "La Antesala del Jefe", text: "Escuchas la voz del Barón. Ha preparado su sala del trono para tu llegada. Este es el último mapa antes de la confrontación." },
+  { title: "¡El Rescate Final!", text: "¡Has derrotado al Barón Oscuro y la Princesa Elara está a salvo! El reino te debe la vida eterna." }
+];
+
 
 export class GameScene extends Phaser.Scene {
   private player!: Phaser.Types.Physics.Arcade.SpriteWithDynamicBody;
@@ -20,6 +33,7 @@ export class GameScene extends Phaser.Scene {
   private gameEnded: boolean = false;
 
   private currentLevel: number = 1;
+  private difficulty: string = 'easy';
   private playerSpeed: number = 160;
   private bombRange: number = 1;
   private maxBombs: number = 1;
@@ -28,7 +42,6 @@ export class GameScene extends Phaser.Scene {
   private lives: number = 3;
   private deaths: number = 0;
 
-  // AÑADIDO: XP de la sesión actual (local) y objeto de texto del HUD
   private currentSessionXP: number = 0;
   private statusText!: Phaser.GameObjects.Text;
 
@@ -38,7 +51,8 @@ export class GameScene extends Phaser.Scene {
   private portal!: Portal;
   private enemiesList: Enemy[] = [];
 
-  private bricksLayer!: Phaser.Tilemaps.TilemapLayer | null;
+  private cratesGroup!: Phaser.Physics.Arcade.Group;
+
   private bombs!: Phaser.Physics.Arcade.Group;
   private explosionGroup!: Phaser.Physics.Arcade.Group;
   private itemsGroup!: Phaser.Physics.Arcade.Group;
@@ -56,8 +70,11 @@ export class GameScene extends Phaser.Scene {
   }
 
   init(data: { difficulty: string, level?: number, score?: number, lives?: number, bombs?: number, speed?: number, range?: number, addSessionXP?: (data: PlayerSessionData) => Promise<number> }) {
-    if (data.difficulty === 'medium' && !data.speed) this.playerSpeed = 180;
-    if (data.difficulty === 'hard' && !data.speed) this.playerSpeed = 250;
+
+    this.difficulty = data.difficulty || 'easy';
+
+    if (this.difficulty === 'medium' && !data.speed) this.playerSpeed = 180;
+    if (this.difficulty === 'hard' && !data.speed) this.playerSpeed = 250;
 
     this.currentLevel = data.level || 1;
     this.score = data.score || 0;
@@ -79,18 +96,26 @@ export class GameScene extends Phaser.Scene {
     this.sessionActions = [];
     this.gameEnded = false;
     GAME_START_TIME = Date.now();
-    this.currentSessionXP = 0; // Reset XP on level restart
+    this.currentSessionXP = 0;
+
+    console.log(`[GameScene INIT] Intentando cargar Nivel: ${this.currentLevel}`);
   }
 
   preload() {
-    // ... (Carga de assets)
     this.load.spritesheet('player', 'assets/sprites/player.png', { frameWidth: 32, frameHeight: 32 });
     this.load.spritesheet('enemy', 'assets/sprites/enemy.png', { frameWidth: 32, frameHeight: 32 });
     this.load.image('bomb', 'assets/sprites/bomb.png');
     this.load.image('portal', 'assets/sprites/portal.png');
+    this.load.image('crate', 'assets/sprites/crate.png');
 
     this.load.tilemapTiledJSON('level1', 'assets/maps/level1.json');
     this.load.tilemapTiledJSON('level2', 'assets/maps/level2.json');
+    this.load.tilemapTiledJSON('level3', 'assets/maps/level3.json');
+    this.load.tilemapTiledJSON('level4', 'assets/maps/level4.json');
+    this.load.tilemapTiledJSON('level5', 'assets/maps/level5.json');
+    this.load.tilemapTiledJSON('level6', 'assets/maps/level6.json');
+    this.load.tilemapTiledJSON('level7', 'assets/maps/level7.json');
+
     this.load.image('tiles', 'assets/maps/tileset.png');
 
     this.load.image('item_range', 'assets/items/powerup_range.png');
@@ -111,10 +136,20 @@ export class GameScene extends Phaser.Scene {
     this.explosionGroup = this.physics.add.group();
     this.enemiesGroup = this.physics.add.group();
     this.itemsGroup = this.physics.add.group();
+    this.cratesGroup = this.physics.add.group();
     this.enemiesList = [];
 
     const levelKey = `level${this.currentLevel}`;
-    const mapKey = this.cache.tilemap.exists(levelKey) ? levelKey : 'level1';
+
+    const mapExists = this.cache.tilemap.exists(levelKey);
+    console.log(`[GameScene CREATE] Buscando clave "${levelKey}". Existe: ${mapExists}`);
+
+    const mapKey = mapExists ? levelKey : 'level1';
+
+    if (mapKey === 'level1' && this.currentLevel !== 1) {
+      console.warn(`[MAP LOAD ERROR] No se pudo cargar el mapa "${levelKey}". Usando FALLBACK a level1.json.`);
+    }
+
     this.map = this.make.tilemap({ key: mapKey });
 
     this.MAP_WIDTH = this.map.width;
@@ -126,14 +161,11 @@ export class GameScene extends Phaser.Scene {
       tileset = this.map.addTilesetImage(tilesetName, 'tiles');
       if (tileset) {
 
-        // CORRECCIÓN FINAL: Usar el valor numérico 1 (NEAREST) para el filtro de textura.
-        // Esto resuelve el TypeError y asegura el renderizado de pixel art.
-        this.textures.get('tiles').setFilter(1); // 1 es el valor numérico para NEAREST
+        this.textures.get('tiles').setFilter(1);
 
         const floorLayer = this.map.layers.find(l => l.name.toLowerCase().includes('floor') || l.name.toLowerCase().includes('suelo'));
         if (floorLayer) {
-          const layer = this.map.createLayer(floorLayer.name, tileset, 0, 0);
-          // Ya no se llama a setSmoothing(false);
+          this.map.createLayer(floorLayer.name, tileset, 0, 0);
         }
 
         const wallLayer = this.map.layers.find(l => l.name.toLowerCase().includes('wall') || l.name.toLowerCase().includes('muro'));
@@ -141,11 +173,10 @@ export class GameScene extends Phaser.Scene {
           this.wallsLayer = this.map.createLayer(wallLayer.name, tileset, 0, 0);
           if (this.wallsLayer) {
             this.wallsLayer.setCollisionByExclusion([-1]);
-            // Ya no se llama a this.wallsLayer.setSmoothing(false);
           }
         }
 
-        this.bricksLayer = this.generateDestructibles(tileset);
+        this.generateCrates();
       }
     }
 
@@ -159,7 +190,16 @@ export class GameScene extends Phaser.Scene {
     this.player.body.setOffset(6, 12);
     this.player.setCollideWorldBounds(true);
 
+    // ✅ Configura los límites del mundo para que coincidan EXACTAMENTE con tu mapa.
     this.physics.world.setBounds(0, 0, this.map.widthInPixels, this.map.heightInPixels);
+    this.physics.world.on('worldbounds', (body: Phaser.Physics.Arcade.Body) => {
+      // Forzar cambio de dirección en enemigo si toca el límite
+      const enemy = body.gameObject.getData('owner') as Enemy;
+      if (enemy) {
+        enemy.changeDirection();
+      }
+    }, this);
+
 
     this.spawnEnemies(3 + (this.currentLevel * 2));
 
@@ -167,19 +207,15 @@ export class GameScene extends Phaser.Scene {
       this.physics.add.collider(this.player, this.wallsLayer);
       this.physics.add.collider(this.enemiesGroup, this.wallsLayer);
     }
-    if (this.bricksLayer) {
-      this.bricksLayer.setCollisionByExclusion([-1]);
-      this.physics.add.collider(this.player, this.bricksLayer);
-      this.physics.add.collider(this.enemiesGroup, this.bricksLayer);
-    }
+    this.physics.add.collider(this.player, this.cratesGroup);
+    this.physics.add.collider(this.enemiesGroup, this.cratesGroup);
+
 
     this.physics.add.collider(this.player, this.bombs);
     this.physics.add.collider(this.enemiesGroup, this.bombs);
 
     this.physics.add.overlap(this.explosionGroup, this.enemiesGroup, this.handleExplosionEnemy, undefined, this);
-    if (this.bricksLayer) {
-      this.physics.add.overlap(this.explosionGroup, this.bricksLayer, (exp: any, tile: any) => this.handleExplosionTile(tile), undefined, this);
-    }
+    this.physics.add.overlap(this.explosionGroup, this.cratesGroup, this.handleExplosionCrate, undefined, this);
     this.physics.add.overlap(this.explosionGroup, this.itemsGroup, this.handleExplosionItem, undefined, this);
 
     this.physics.add.overlap(this.player, this.enemiesGroup, this.handlePlayerDeath, undefined, this);
@@ -200,7 +236,7 @@ export class GameScene extends Phaser.Scene {
 
   // FUNCIÓN PARA GENERAR EL TEXTO DEL HUD
   private getHudText(): string {
-    return `NIVEL ${this.currentLevel} | VIDAS: ${this.lives} | SCORE: ${this.score} | XP: ${this.currentSessionXP}`;
+    return `NIVEL ${this.currentLevel} | VIDAS: ${this.lives} | SCORE: ${this.score} | XP BASE: ${this.currentSessionXP}`;
   }
 
   update(time: number, delta: number) {
@@ -210,13 +246,15 @@ export class GameScene extends Phaser.Scene {
     this.handleBombInput();
 
     this.enemiesList.forEach(e => e.update(delta));
+
+    // ✅ CLAVE: Limpia la lista de enemigos muertos para que el contador llegue a cero.
     this.enemiesList = this.enemiesList.filter(e => !e.isDead());
 
     if (this.enemiesList.length === 0 && !this.portalSpawned) {
+      console.log("[GameScene TNT] Eliminados todos los enemigos. Spawneando portal.");
       this.spawnPortalRandomly();
     }
 
-    // ACTUALIZAR EL HUD LOCALMENTE CADA CUADRO
     this.statusText.setText(this.getHudText());
   }
 
@@ -238,12 +276,112 @@ export class GameScene extends Phaser.Scene {
 
     const awardedXP = await this.addSessionXP(sessionData);
 
-    let message = isComplete ? "¡NIVEL COMPLETADO!" : "GAME OVER";
+    const message = isComplete ? "¡NIVEL COMPLETADO!" : "GAME OVER";
 
-    this.add.text(400, 350, `XP GANADA: ${awardedXP}`, { fontSize: '24px', color: '#00ff00', stroke: '#000', strokeThickness: 4, fontFamily: 'monospace' }).setOrigin(0.5).setDepth(100);
+    this.add.text(400, 300, message, { fontSize: '40px', color: '#FFD700', stroke: '#000', strokeThickness: 6, fontFamily: 'monospace' }).setOrigin(0.5);
+
+    this.add.text(400, 350, `XP FINAL: ${awardedXP}`, { fontSize: '24px', color: '#00ff00', stroke: '#000', strokeThickness: 4, fontFamily: 'monospace' }).setOrigin(0.5).setDepth(100);
   }
 
-  // CONVERTIDO A FUNCIÓN FLECHA PARA RESOLVER ERRORES DE CONTEXTO (this.)
+  // 👑 MÉTODO DE NARRATIVA (Avance de Nivel) 👑
+  private displayNarrative(level: number) {
+    this.sound.stopAll();
+
+    const storyIndex = level - 1;
+    const finalIndex = Math.min(storyIndex, STORY_NARRATIVE.length - 1);
+    const narrativeData = STORY_NARRATIVE[finalIndex];
+
+    const isGameEnd = level >= MAX_STORY_LEVEL;
+
+    this.cameras.main.setBackgroundColor('#000000');
+
+    this.add.text(400, 200, narrativeData.title, {
+      fontSize: '32px', color: '#FFD700', fontFamily: 'monospace'
+    }).setOrigin(0.5).setDepth(100);
+
+    this.add.text(400, 300, narrativeData.text, {
+      fontSize: '18px', color: '#FFFFFF', wordWrap: { width: 600 }, align: 'center', fontFamily: 'monospace'
+    }).setOrigin(0.5).setDepth(100);
+
+    const continueText = this.add.text(400, 400, isGameEnd ? "PRINCESA SALVADA. VOLVIENDO AL MENÚ..." : "CONTINUAR EN 10 SEGUNDOS...", {
+      fontSize: '16px', color: '#00FF00', fontFamily: 'monospace'
+    }).setOrigin(0.5).setDepth(100);
+
+    // Lógica de temporizador de 10 segundos
+    this.time.delayedCall(10000, () => {
+      if (isGameEnd) {
+        window.location.reload();
+      } else {
+        const nextLevel = this.currentLevel + 1;
+
+        this.scene.start('GameScene', {
+          difficulty: this.difficulty,
+          level: nextLevel,
+          score: this.score,
+          lives: this.lives,
+          bombs: this.maxBombs,
+          speed: this.playerSpeed,
+          range: this.bombRange,
+          addSessionXP: this.addSessionXP
+        });
+      }
+    });
+  }
+
+
+  private handleLevelComplete = (player: Phaser.GameObjects.GameObject, portal: Phaser.GameObjects.GameObject) => {
+    if (this.isLevelComplete) return;
+    if (!this.portalSpawned) return;
+
+    this.isLevelComplete = true; // Establecer bandera de completado inmediatamente
+    this.physics.pause();
+    this.sound.stopAll();
+
+    this.score += 500;
+    this.currentSessionXP += XP_VALUES.LEVEL_CLEARED;
+
+    this.trackAction('LEVEL_CLEARED');
+    this.reportSessionEnd(true);
+
+    this.time.delayedCall(2000, () => {
+      // LÓGICA PARA HARDCORE (Bucle Infinito) vs. HISTORIA
+      if (this.difficulty === 'hardcore') {
+        const randomLevel = Phaser.Math.Between(1, MAX_STORY_LEVEL);
+        console.log(`[GameScene] Modo Hardcore: Reiniciando nivel aleatorio ${randomLevel}`);
+        this.scene.start('GameScene', {
+          difficulty: 'hardcore',
+          level: randomLevel,
+          score: this.score,
+          lives: this.lives,
+          bombs: this.maxBombs,
+          speed: this.playerSpeed,
+          range: this.bombRange,
+          addSessionXP: this.addSessionXP
+        });
+      } else {
+        // Modo Historia (Avance)
+        this.displayNarrative(this.currentLevel);
+      }
+    });
+  }
+
+  private handleExplosionCrate = (exp: Phaser.GameObjects.GameObject, crateSprite: Phaser.GameObjects.GameObject) => {
+    const sprite = crateSprite as Phaser.Physics.Arcade.Sprite;
+
+    if (sprite && sprite.active) {
+      const gridX = Math.floor(sprite.x / 32);
+      const gridY = Math.floor(sprite.y / 32);
+
+      sprite.destroy(); // Destruye el sprite de la caja
+      this.currentSessionXP += XP_VALUES.BLOCK_WEAK_DESTROYED;
+      this.trackAction('BLOCK_WEAK_DESTROYED', { gridX, gridY });
+
+      if (Math.random() < 0.5) {
+        this.spawnItem(sprite.x, sprite.y);
+      }
+    }
+  }
+
   private handleExplosionEnemy = (exp: Phaser.GameObjects.GameObject, enemySprite: Phaser.GameObjects.GameObject) => {
     const sprite = enemySprite as Phaser.Physics.Arcade.Sprite;
     const enemy = sprite.getData('owner') as Enemy;
@@ -255,25 +393,6 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // CONVERTIDO A FUNCIÓN FLECHA PARA RESOLVER ERRORES DE CONTEXTO (this.)
-  private handleExplosionTile = (tile: Phaser.Tilemaps.Tile) => {
-    if (!tile || tile.index !== BRICK_TILE_ID || !this.bricksLayer) return;
-
-    const x = tile.pixelX + 16;
-    const y = tile.pixelY + 16;
-
-    if (this.bricksLayer) {
-      this.bricksLayer.removeTileAt(tile.x, tile.y);
-      this.currentSessionXP += XP_VALUES.BLOCK_WEAK_DESTROYED;
-    }
-    this.trackAction('BLOCK_WEAK_DESTROYED', { gridX: tile.x, gridY: tile.y });
-
-    if (Math.random() < 0.5) {
-      this.spawnItem(x, y);
-    }
-  }
-
-  // CONVERTIDO A FUNCIÓN FLECHA PARA RESOLVER ERRORES DE CONTEXTO (this.)
   private handleExplosionItem = (exp: Phaser.GameObjects.GameObject, itemSprite: Phaser.GameObjects.GameObject) => {
     const item = itemSprite.getData('item') as Item;
     if (item) {
@@ -281,7 +400,6 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // CONVERTIDO A FUNCIÓN FLECHA PARA RESOLVER ERRORES DE CONTEXTO (this.)
   private handlePlayerDeath = (player: Phaser.GameObjects.GameObject, enemy: Phaser.GameObjects.GameObject) => {
     if (this.isPlayerDead) return;
 
@@ -312,12 +430,11 @@ export class GameScene extends Phaser.Scene {
       });
     } else {
       this.add.text(400, 300, "GAME OVER", { fontSize: '60px', color: '#ff0000', stroke: '#fff', strokeThickness: 4 }).setOrigin(0.5);
-      this.reportSessionEnd(false); // REPORTE DE FIN DE JUEGO (DERROTA)
+      this.reportSessionEnd(false);
       this.time.delayedCall(3000, () => window.location.reload());
     }
   }
 
-  // CONVERTIDO A FUNCIÓN FLECHA PARA RESOLVER ERRORES DE CONTEXTO (this.)
   private handlePickupItem = (player: Phaser.GameObjects.GameObject, itemSprite: Phaser.GameObjects.GameObject) => {
     const item = itemSprite.getData('item') as Item;
     if (item) {
@@ -338,35 +455,6 @@ export class GameScene extends Phaser.Scene {
       this.score += 50;
       item.destroy();
     }
-  }
-
-  // CONVERTIDO A FUNCIÓN FLECHA PARA RESOLVER ERRORES DE CONTEXTO (this.)
-  private handleLevelComplete = (player: Phaser.GameObjects.GameObject, portal: Phaser.GameObjects.GameObject) => {
-    if (this.isLevelComplete) return;
-    if (!this.portalSpawned) return;
-
-    this.isLevelComplete = true;
-    this.physics.pause();
-    this.sound.stopAll();
-
-    this.score += 500;
-    this.currentSessionXP += XP_VALUES.LEVEL_CLEARED;
-    this.add.text(400, 300, "¡NIVEL COMPLETADO!", { fontSize: '40px', color: '#FFD700', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5);
-
-    this.trackAction('LEVEL_CLEARED');
-    this.reportSessionEnd(true); // REPORTE DE FIN DE JUEGO (VICTORIA)
-
-    this.time.delayedCall(2000, () => {
-      this.scene.restart({
-        level: this.currentLevel + 1,
-        score: this.score,
-        lives: this.lives,
-        bombs: this.maxBombs,
-        speed: this.playerSpeed,
-        range: this.bombRange,
-        difficulty: 'normal'
-      });
-    });
   }
 
   private handlePlayerMovement() {
@@ -431,13 +519,15 @@ export class GameScene extends Phaser.Scene {
 
         if (this.wallsLayer?.hasTileAt(tileX, tileY)) break;
 
-        const hitTile = this.bricksLayer?.getTileAt(tileX, tileY);
+        const hitCrate = this.cratesGroup.getChildren().find(
+          (c: Phaser.GameObjects.Sprite) => Math.floor(c.x / 32) === tileX && Math.floor(c.y / 32) === tileY
+        ) as Phaser.GameObjects.Sprite | undefined;
 
-        if (hitTile && hitTile.index === BRICK_TILE_ID) {
+        if (hitCrate) {
           this.createExplosionSprite(tx, ty);
-          this.handleExplosionTile(hitTile);
+          this.handleExplosionCrate(undefined as any, hitCrate);
           chainHitCount++;
-          break;
+          break; // Una caja detiene la explosión en esa dirección
         }
 
         this.createExplosionSprite(tx, ty);
@@ -462,12 +552,17 @@ export class GameScene extends Phaser.Scene {
     let valid = false;
     let x = 0, y = 0, tries = 200;
 
-    while (!valid && tries < 200) {
-      tries++;
+    while (!valid && tries > 0) {
+      tries--;
       const gx = Phaser.Math.Between(1, this.MAP_WIDTH - 2);
       const gy = Phaser.Math.Between(1, this.MAP_HEIGHT - 2);
 
-      if (!this.wallsLayer?.hasTileAt(gx, gy) && (!this.bricksLayer || !this.bricksLayer.hasTileAt(gx, gy))) {
+      const hasWall = this.wallsLayer?.hasTileAt(gx, gy);
+      const hasCrate = this.cratesGroup.getChildren().some(
+        (c: Phaser.GameObjects.Sprite) => Math.floor(c.x / 32) === gx && Math.floor(c.y / 32) === gy
+      );
+
+      if (!hasWall && !hasCrate) {
         x = (gx * 32) + 16;
         y = (gy * 32) + 16;
 
@@ -476,7 +571,11 @@ export class GameScene extends Phaser.Scene {
         }
       }
     }
-    if (!valid) { x = (this.MAP_WIDTH - 2) * 32 + 16; y = (this.MAP_HEIGHT - 2) * 32 + 16; }
+    if (!valid) {
+      x = (this.MAP_WIDTH - 2) * 32 + 16;
+      y = (this.MAP_HEIGHT - 2) * 32 + 16;
+      console.warn("[Portal Spawn] No se encontró ubicación aleatoria válida. Usando esquina inferior derecha.");
+    }
 
     this.portal.spawn(x, y);
     const txt = this.add.text(400, 300, "¡PORTAL ABIERTO!", { fontSize: '30px', color: '#00ff00', stroke: '#000', strokeThickness: 4, fontFamily: 'monospace' }).setOrigin(0.5);
@@ -496,7 +595,6 @@ export class GameScene extends Phaser.Scene {
       this.anims.create({ key: 'up', frames: this.anims.generateFrameNumbers('player', { start: 4, end: 7 }), frameRate: 8, repeat: -1 });
       this.anims.create({ key: 'right', frames: this.anims.generateFrameNumbers('player', { start: 8, end: 11 }), frameRate: 8, repeat: -1 });
       this.anims.create({ key: 'left', frames: this.anims.generateFrameNumbers('player', { start: 12, end: 15 }), frameRate: 8, repeat: -1 });
-      this.anims.create({ key: 'turn', frames: [{ key: 'player', frame: 0 }], frameRate: 20 });
     }
     if (!this.anims.exists('enemy_down')) {
       this.anims.create({ key: 'enemy_down', frames: this.anims.generateFrameNumbers('enemy', { start: 0, end: 3 }), frameRate: 6, repeat: -1 });
@@ -504,6 +602,7 @@ export class GameScene extends Phaser.Scene {
       this.anims.create({ key: 'enemy_up', frames: this.anims.generateFrameNumbers('enemy', { start: 8, end: 11 }), frameRate: 6, repeat: -1 });
       this.anims.create({ key: 'enemy_left', frames: this.anims.generateFrameNumbers('enemy', { start: 4, end: 7 }), frameRate: 6, repeat: -1 });
     }
+    this.anims.create({ key: 'turn', frames: [{ key: 'player', frame: 0 }], frameRate: 20 });
   }
 
   private spawnEnemies(count: number) {
@@ -513,8 +612,15 @@ export class GameScene extends Phaser.Scene {
       const x = Phaser.Math.Between(1, this.MAP_WIDTH - 2);
       const y = Phaser.Math.Between(1, this.MAP_HEIGHT - 2);
       if (x < 5 && y < 5) continue;
-      if (!this.wallsLayer?.hasTileAt(x, y) && (!this.bricksLayer || !this.bricksLayer.hasTileAt(x, y))) {
-        const enemy = new Enemy(this, (x * 32) + 16, (y * 32) + 16);
+
+      const hasWall = this.wallsLayer?.hasTileAt(x, y);
+      const hasCrate = this.cratesGroup.getChildren().some(
+        (c: Phaser.GameObjects.Sprite) => Math.floor(c.x / 32) === x && Math.floor(c.y / 32) === y
+      );
+
+      if (!hasWall && !hasCrate) {
+        // ✅ CORRECCIÓN: Pasar la referencia del jugador
+        const enemy = new Enemy(this, (x * 32) + 16, (y * 32) + 16, this.player);
         this.enemiesList.push(enemy);
         this.enemiesGroup.add(enemy.getSprite());
         spawned++;
@@ -522,18 +628,28 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private generateDestructibles(tileset: Phaser.Tilemaps.Tileset): Phaser.Tilemaps.TilemapLayer {
-    const bricksLayer = this.map.createBlankLayer('Bricks', tileset, 0, 0, this.MAP_WIDTH, this.MAP_HEIGHT);
-
+  private generateCrates() {
     for (let y = 0; y < this.MAP_HEIGHT; y++) {
       for (let x = 0; x < this.MAP_WIDTH; x++) {
+        // Excluir área de inicio del jugador (1,1)
         if ((x === 1 && y === 1) || (x === 1 && y === 2) || (x === 2 && y === 1)) continue;
 
-        if (!this.wallsLayer?.hasTileAt(x, y) && Math.random() < 0.3) {
-          bricksLayer.putTileAt(BRICK_TILE_ID, x, y);
+        const hasWall = this.wallsLayer?.hasTileAt(x, y);
+
+        // Si no es un muro y hay una probabilidad del 30% de colocar una caja
+        if (!hasWall && Math.random() < 0.3) {
+          const px = (x * 32) + 16;
+          const py = (y * 32) + 16;
+
+          const crate = this.physics.add.sprite(px, py, 'crate');
+          crate.setImmovable(true);
+          crate.body.moves = false;
+          crate.body.setSize(32, 32);
+          crate.setDepth(1);
+
+          this.cratesGroup.add(crate);
         }
       }
     }
-    return bricksLayer;
   }
 }

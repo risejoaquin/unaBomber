@@ -54,42 +54,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const calculateMaxXp = (level: number) => Math.floor(100 * Math.pow(1.1, level - 1));
 
-    // --- LÓGICA DE XP (SIMULACIÓN DE BACKEND) ---
+    // --- LÓGICA DE XP (CAPEO Y CÁLCULO) ---
 
     const calculateSessionXP = (data: PlayerSessionData): number => {
-        let sessionXP = 0;
+        let sessionXP = 0; // XP de acciones (Block Destroyed, Enemy Killed, Item Collected, Chain Hit)
         let bombPlacedCount = 0;
-        let lastActionTimestamp = 0;
         const XP_LIMIT_PER_MINUTE = 600;
 
+        // 1. Calcular la XP base total de acciones (sin bonos de supervivencia/perfecto)
         for (const action of data.actions) {
-            const timeDiff = action.timestamp - lastActionTimestamp;
-
-            // CORRECCIÓN FINAL: Deshabilitar el chequeo de anti-trampas en el frontend.
-            // Esto permite que los eventos de juego rápidos no anulen la sesión.
-            // La lógica de seguridad real debe ir en el backend (Cloud Functions).
-            /*
-            if (timeDiff < 1000 && action.type !== 'MOVEMENT_INPUT') {
-                console.warn("[TRAMPA DETECTADA] Acciones muy rápidas. XP anulada.");
-                return 0;
-            }
-            */
-            lastActionTimestamp = action.timestamp;
-
             let xp = XP_VALUES[action.type] || 0;
 
             if (action.type === 'BOMB_PLACED') bombPlacedCount++;
 
-            sessionXP += xp;
-
-            if (sessionXP > XP_LIMIT_PER_MINUTE * (data.sessionDurationSeconds / 60 + 1)) {
-                sessionXP = XP_LIMIT_PER_MINUTE * (data.sessionDurationSeconds / 60);
+            if (action.type !== 'MOVEMENT_INPUT') {
+                sessionXP += xp;
             }
         }
 
+        // 2. Aplicar límite de XP por minuto a la XP de acciones (Anti-Farming)
+        const sessionDurationMinutes = data.sessionDurationSeconds / 60;
+        const maxActionXPAllowed = XP_LIMIT_PER_MINUTE * sessionDurationMinutes;
+
+        let awardedActionXP = Math.min(sessionXP, maxActionXPAllowed);
+        awardedActionXP = Math.floor(awardedActionXP);
+
+        // 3. Calcular Bonos
         let survivalBonus = 0;
         if (bombPlacedCount > 0) {
-            survivalBonus = Math.floor(data.sessionDurationSeconds / 60) * XP_VALUES.SURVIVE_MINUTE;
+            survivalBonus = Math.floor(sessionDurationMinutes) * XP_VALUES.SURVIVE_MINUTE;
         }
 
         let perfectBonus = 0;
@@ -97,11 +90,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             perfectBonus = XP_VALUES.GAME_PERFECT_BONUS;
         }
 
-        if (data.deaths > 0) {
-            perfectBonus = 0;
-        }
-
-        return Math.floor(sessionXP + survivalBonus + perfectBonus);
+        // 4. Sumar XP final (XP de Acciones Limitada + Bonos)
+        return Math.floor(awardedActionXP + survivalBonus + perfectBonus);
     };
 
     const addSessionXP = async (data: PlayerSessionData): Promise<number> => {
@@ -122,7 +112,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
 
         const userRef = doc(db, "players", user.uid);
-        // Esto soluciona el ERROR 400 y el problema de que la XP no se guarde.
         await updateDoc(userRef, {
             currentXp: newXp,
             currentLevel: newLevel,
@@ -147,35 +136,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return awardedXP;
     };
 
-    // --- 🏆 LEADERBOARD Y PERFIL ---
-    const getLeaderboardTop10 = async (): Promise<LeaderboardEntry[]> => {
-        // Consulta Firestore para el Leaderboard
-        const q = query(
-            collection(db, "players"),
-            orderBy("totalXP", "desc"),
-            limit(10)
-        );
-
-        const snapshot = await getDocs(q);
-
-        return snapshot.docs.map(doc => ({
-            uid: doc.id,
-            username: doc.data().username,
-            totalXP: doc.data().totalXP,
-            level: doc.data().currentLevel
-        }));
-    }
-
-    const updateLeaderboard = async (player: UserProfile) => {
-        console.log(`Leaderboard updated for ${player.username}`);
-    }
+    // --- MANEJO DE PERFIL (SOLUCIÓN CRÍTICA: ROBUSTEZ AL LEER DE FIREBASE) ---
 
     const handleUserProfile = async (firebaseUser: User) => {
         const userRef = doc(db, "players", firebaseUser.uid);
         const userSnap = await getDoc(userRef);
 
         if (userSnap.exists()) {
-            setProfile({ ...userSnap.data() as UserProfile, isAnonymous: firebaseUser.isAnonymous });
+            const data = userSnap.data();
+            // FIX CRÍTICO: Garantizar que todos los campos numéricos existan (usando || 0 o || valor_defecto)
+            // para evitar que 'undefined' se propague a addSessionXP o updateDoc().
+            setProfile({
+                ...data as UserProfile,
+                coins: data.coins || 0,
+                currentXp: data.currentXp || 0,
+                totalXP: data.totalXP || 0,
+                currentLevel: data.currentLevel || 1,
+                maxXp: data.maxXp || 100,
+                isAnonymous: firebaseUser.isAnonymous
+            });
         } else {
             const newProfile: UserProfile = {
                 uid: firebaseUser.uid,
@@ -194,6 +173,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
+    // --- (Resto del código de AuthContext) ---
+
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             setUser(currentUser);
@@ -207,10 +188,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return () => unsubscribe();
     }, []);
 
-    // --- MÉTODOS DE AUTH ---
+    const getLeaderboardTop10 = async (): Promise<LeaderboardEntry[]> => {
+        const q = query(
+            collection(db, "players"),
+            orderBy("totalXP", "desc"),
+            limit(10)
+        );
+        const snapshot = await getDocs(q);
+        return snapshot.docs.map(doc => ({
+            uid: doc.id,
+            username: doc.data().username,
+            totalXP: doc.data().totalXP,
+            level: doc.data().currentLevel
+        }));
+    }
+
+    const updateLeaderboard = async (player: UserProfile) => {
+        console.log(`Leaderboard updated for ${player.username}`);
+    }
+
     const loginWithGoogle = async () => {
         try {
-            // CORRECCIÓN ESTRUCTURAL DE TRY/CATCH/IF ANIDADO
             if (auth.currentUser && auth.currentUser.isAnonymous) {
                 await linkWithPopup(auth.currentUser, googleProvider);
                 if (profile) setProfile({ ...profile, isAnonymous: false });

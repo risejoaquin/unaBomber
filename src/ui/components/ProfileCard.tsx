@@ -63,6 +63,7 @@ export const ProfileCard: React.FC = () => {
             <div className={styles.xpContainer}>
                 {/* Relleno de la barra (animado por CSS) */}
                 <div className={styles.xpBarWrapper}>
+                    {/* El estilo 'width' es lo que hace que la barra se mueva */}
                     <div className={styles.xpBar} style={{ width: `${xpPercent}%` }}></div>
                 </div>
 

@@ -1,7 +1,10 @@
+// risejoaquin/unabomber/unaBomber-77c2e36d24c38837281eea16a22c0e274059b7fc/vite.config.mjs
+
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-    root: 'client',
+    // CAMBIO CLAVE: Cambiar la raíz a la carpeta principal (donde está index.html de React)
+    root: '.',
     base: './',
     server: {
         port: 8080,
@@ -12,7 +15,8 @@ export default defineConfig({
         outDir: 'dist',
         rollupOptions: {
             input: {
-                app: './client/index.html'
+                // El archivo principal de la aplicación es index.html en la raíz
+                app: './index.html'
             }
         }
     }
