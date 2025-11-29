@@ -1,0 +1,85 @@
+{
+    "Map/SizeTest": {
+        "height": 4300,
+        "width": 2
+    },
+    "activeFile": "level2.json",
+    "expandedProjectPaths": [
+        "."
+    ],
+    "fileStates": {
+        "": {
+            "scaleInDock": 1
+        },
+        "#cainos": {
+            "scaleInDock": 0.33
+        },
+        "level1.json": {
+            "scale": 1.0996249999999999,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 430.6013413663749,
+                "y": 303.73991133340917
+            }
+        },
+        "level1.json#Cainos": {
+            "scaleInDock": 0.33
+        },
+        "level1.json#tileset.png": {
+            "dynamicWrapping": false,
+            "scaleInDock": 0.33,
+            "scaleInEditor": 0.33
+        },
+        "level1.tmx": {
+            "scale": 1,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 364,
+                "y": 300
+            }
+        },
+        "level1.tmx#tileset.png": {
+            "scaleInDock": 1.5
+        },
+        "level2.json": {
+            "scale": 1.1791874999999998,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 399.8515927280437,
+                "y": 285.79000371018185
+            }
+        },
+        "level2.json#cainos": {
+            "scaleInDock": 0.33
+        },
+        "unaBomberLevel2..tmj": {
+            "scale": 1,
+            "selectedLayer": 0,
+            "viewCenter": {
+                "x": 377.5,
+                "y": 304
+            }
+        },
+        "unaBomberLevel2..tmj#cainos": {
+            "scaleInDock": 0.33
+        }
+    },
+    "last.exportedFilePath": "C:/Users/compu/Downloads/unaBomber/src/assets/maps",
+    "last.imagePath": "C:/Users/compu/Downloads/unaBomber/src/assets/maps",
+    "map.height": 19,
+    "map.lastUsedExportFilter": "JSON map files (*.tmj *.json)",
+    "map.lastUsedFormat": "json",
+    "map.width": 25,
+    "openFiles": [
+        "level1.json",
+        "level2.json"
+    ],
+    "project": "unaBomber.tiled-project",
+    "recentFiles": [
+        "level1.json",
+        "level2.json",
+        "unaBomberLevel2..tmj",
+        "level1.tmx"
+    ],
+    "tileset.embedInMap": true
+}

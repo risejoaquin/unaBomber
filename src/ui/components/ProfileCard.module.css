@@ -1,0 +1,161 @@
+.card {
+    background: var(--gothic-dark-color);
+    /* Fondo oscuro del card */
+    border-radius: 4px;
+    padding: 15px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
+    width: 100%;
+    max-width: 350px;
+    font-family: 'Rajdhani', sans-serif;
+    color: #fff;
+    border: 1px solid var(--gothic-border);
+}
+
+.topRow {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 10px;
+}
+
+.avatarContainer {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    border-radius: 4px;
+    overflow: hidden;
+    cursor: pointer;
+    background: #444;
+    border: 2px solid var(--gothic-border);
+    aspect-ratio: 1 / 1;
+    /* CORRECCIÓN: Fuerza relación de aspecto cuadrada */
+}
+
+.avatar {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    /* CORRECCIÓN: Asegura que la imagen llene el contenedor sin distorsión visible */
+}
+
+.uploadOverlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    color: var(--gothic-gold);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    opacity: 0;
+    transition: opacity 0.2s;
+    font-size: 1.5rem;
+}
+
+.avatarContainer:hover .uploadOverlay {
+    opacity: 1;
+}
+
+.stats {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+}
+
+.statRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.coinBadge {
+    background: var(--gothic-gold);
+    color: #000;
+    padding: 4px 10px;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+    font-weight: 700;
+}
+
+.username {
+    margin: 5px 0 15px 0;
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--gothic-gold);
+}
+
+/* --- BARRA DE XP (Ajustada para imagen gótica) --- */
+.xpContainer {
+    position: relative;
+    height: 40px;
+
+    /* MARCO: xp_bar_frame.png */
+    background: url('/assets/sprites/xp_bar_frame.png') no-repeat center center;
+    /* FIX: Mantiene la proporción y previene el estiramiento vertical */
+    background-size: contain;
+
+    border-radius: 0;
+    display: flex;
+    align-items: center;
+    padding: 0 45px 0 45px;
+    box-shadow: none;
+}
+
+.xpBarWrapper {
+    height: 14px;
+    overflow: hidden;
+    position: absolute;
+
+    left: 42px;
+    top: 13px;
+
+    width: calc(100% - 85px);
+    border-radius: 2px;
+}
+
+.xpBar {
+    height: 100%;
+    /* RELLENO: xp_fill_green.png (se repite horizontalmente) */
+    background: url('/assets/sprites/xp_fill_green.png') repeat-x;
+    background-size: auto 100%;
+    transition: width 0.5s ease-out;
+    border-radius: 2px;
+    box-shadow: 0 0 5px rgba(139, 195, 74, 0.8);
+}
+
+.xpText {
+    position: absolute;
+    width: 100%;
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, 1);
+    left: 0;
+    line-height: 40px;
+    z-index: 2;
+}
+
+.levelBadge {
+    position: absolute;
+    right: 5px;
+    background: var(--gothic-accent);
+    color: #fff;
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    border: 2px solid var(--gothic-gold);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+    top: 7px;
+    font-size: 0.7rem;
+    z-index: 3;
+}

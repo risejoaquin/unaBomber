@@ -1,0 +1,151 @@
+/* Importar fuentes retro y futuristas */
+/* Mantener Rajdhani para legibilidad, pero Press Start para títulos retro */
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@500;700&display=swap');
+
+:root {
+  /* TEMAS OSCUROS GÓTICOS/FANTASÍA */
+  --bg-dark: #0f0b08;
+  /* Casi negro, pero marrón oscuro */
+  --gothic-dark-color: #332b26;
+  --gothic-border: #8d7e68;
+  --gothic-gold: #c7a46e;
+  --gothic-accent: #9a2020;
+  /* Rojo sangre para acentos */
+  --glass-bg: rgba(15, 11, 8, 0.85);
+  /* Oscurecer el fondo de cristal */
+  --glass-border: 1px solid rgba(141, 126, 104, 0.3);
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-dark);
+  /* Patrón de fibra de carbono sutil -> CAMBIAR A PATRÓN DE PIEDRA/MÁRMOL OSCURO (Placeholder visual) */
+  background-image:
+    linear-gradient(rgba(15, 11, 8, 0.9), rgba(15, 11, 8, 0.95)),
+    url("https://www.transparenttextures.com/patterns/dark-mosaic.png");
+  /* TEXTURA OSCURA */
+  color: #fff;
+  font-family: 'Rajdhani', sans-serif;
+  overflow: hidden;
+}
+
+/* --- UTILIDADES --- */
+.text-neon {
+  color: var(--gothic-gold);
+  text-shadow: 0 0 10px rgba(199, 164, 110, 0.5);
+}
+
+.text-pink {
+  color: var(--gothic-accent);
+  text-shadow: 0 0 10px rgba(154, 32, 32, 0.5);
+}
+
+.font-retro {
+  font-family: 'Press Start 2P', cursive;
+}
+
+/* --- CONTENEDORES GLASSMORPHISM --- */
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(8px);
+  /* Reducir un poco el blur */
+  border: var(--glass-border);
+  border-radius: 4px;
+  /* Hacer bordes más afilados */
+  padding: 40px;
+  box-shadow: 0 0 40px rgba(0, 0, 0, 0.6);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Línea brillante decorativa arriba del panel -> CAMBIAR A MARCO DORADO */
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  /* Más fino */
+  background: var(--gothic-gold);
+  box-shadow: 0 0 8px var(--gothic-gold);
+}
+
+/* --- BOTONES ESTILO DIABLO II --- */
+.cyber-btn {
+  width: 100%;
+  padding: 15px;
+  margin-bottom: 15px;
+  background: var(--gothic-dark-color);
+  border: 1px solid var(--gothic-border);
+  color: var(--gothic-gold);
+  font-family: 'Rajdhani', sans-serif;
+  font-weight: 700;
+  font-size: 1.1rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.cyber-btn:hover {
+  background: #4a3e36;
+  /* Un poco más claro al pasar el ratón */
+  color: #fff;
+  border-color: #fff;
+  box-shadow: 0 0 15px var(--gothic-gold);
+  transform: translateY(-1px);
+}
+
+/* Variantes de Botón */
+.cyber-btn.primary {
+  background: var(--gothic-accent);
+  /* Rojo oscuro */
+  border-color: var(--gothic-accent);
+  color: #fff;
+}
+
+.cyber-btn.primary:hover {
+  background: #b62828;
+  box-shadow: 0 0 15px var(--gothic-accent);
+}
+
+.cyber-btn.google {
+  background: #5e4719;
+  /* Marrón/Oro Oscuro */
+  border-color: #8d7e68;
+  color: #fff;
+}
+
+.cyber-btn.google:hover {
+  box-shadow: 0 0 15px var(--gothic-gold);
+}
+
+/* --- INPUTS --- */
+.cyber-input {
+  width: 100%;
+  padding: 12px 15px;
+  margin-bottom: 15px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid #555;
+  border-radius: 0;
+  /* Bordes afilados */
+  color: #fff;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1rem;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.cyber-input:focus {
+  border-color: var(--gothic-gold);
+  box-shadow: 0 0 8px rgba(199, 164, 110, 0.5);
+}

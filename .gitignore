@@ -1,0 +1,41 @@
+<<<<<<< HEAD
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Dependencias
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs
+*.njsproj
+*.sln
+*.sw?
+
+# Variables de entorno (MUY IMPORTANTE: NO SUBIR CLAVES API)
+.env
+.env.*
+!.env.example
+
+# Testing
+coverage
+
+# Archivos temporales de Vite
+timestamp
+=======
+node_modules/
+.env
+>>>>>>> e8a5627be6fcb076bd58b4781557ae77e6c7faf0
